@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Bun and npm artifacts
+bun.lockb
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build and cache output
+dist/
+build/
+.tmp/
+.cache/
+coverage/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Misc
+*.log
+logs/
+tmp/

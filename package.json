@@ -1,0 +1,24 @@
+{
+  "name": "dreams",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "agent": "bun run src/agent.ts",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@lucid-dreams/agent-kit": "^0.2.8",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "bun-types": "^1.3.1",
+    "typescript": "^5.9.3"
+  }
+}
