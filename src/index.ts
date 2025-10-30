@@ -418,7 +418,8 @@ const server = Bun.serve({
       }
 
       const entrypointUrl = `/entrypoints/summarise%20chat/invoke`;
-      const price = process.env.ENTRYPOINT_PRICE || "0.001";
+      const price = process.env.ENTRYPOINT_PRICE || "0.10";
+      const currency = process.env.PAYMENT_CURRENCY || "USDC";
       
       return new Response(`<!DOCTYPE html>
 <html>
@@ -439,12 +440,12 @@ const server = Bun.serve({
   <div class="container">
     <h1>💳 Pay to Summarise Discord Channel</h1>
     <div class="info">
-      <p><strong>Price:</strong> ${price} ETH</p>
+      <p><strong>Price:</strong> $${price} ${currency}</p>
       <p><strong>Channel ID:</strong> ${channelId}</p>
       <p><strong>Lookback:</strong> ${lookbackMinutes} minutes</p>
     </div>
     <p>Click below to pay via x402. After payment, your summary will automatically appear in Discord.</p>
-    <button class="button" onclick="pay()">Pay ${price} ETH</button>
+    <button class="button" onclick="pay()">Pay $${price} ${currency}</button>
     <div id="status" style="margin-top: 20px;"></div>
   </div>
   <script type="module">

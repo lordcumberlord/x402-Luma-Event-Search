@@ -49,6 +49,9 @@ const DISCORD_API_DEFAULT_BASE = "https://discord.com/api/v10";
 const DISCORD_EPOCH = 1420070400000n;
 const MAX_FETCH_PAGES = 10; // safeguards agent costs by limiting to 1,000 messages.
 
+// USDC on Base: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (6 decimals)
+const USDC_ON_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+
 const configOverrides: AgentKitConfig = {
   payments: {
     facilitatorUrl:
@@ -59,6 +62,9 @@ const configOverrides: AgentKitConfig = {
       "0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429",
     network: (process.env.NETWORK as any) ?? "base",
     defaultPrice: process.env.DEFAULT_PRICE ?? "0.1",
+    // Add token configuration for USDC
+    // Note: x402 may require token address in payment headers, not config
+    // This will depend on x402 SDK implementation
   },
 };
 
@@ -202,7 +208,9 @@ addEntrypoint({
         });
       }
     }),
-  price: process.env.ENTRYPOINT_PRICE || "0.001", // Default to 0.001 ETH (or set via ENTRYPOINT_PRICE env var)
+  price: process.env.ENTRYPOINT_PRICE || "0.10", // Default to 0.10 USDC (or set via ENTRYPOINT_PRICE env var)
+  // Note: x402 will handle token selection based on payment headers
+  // For USDC, users will pay with USDC when using x402 wallet
   output: z.object({
     summary: z.string(),
     actionables: z.array(z.string()),
