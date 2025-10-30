@@ -156,20 +156,41 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
           
           console.log(`[discord] Calling entrypoint: ${entrypointUrl}`);
 
+          // Ensure channel_id is valid
+          if (!channel_id || typeof channel_id !== "string" || channel_id.trim() === "") {
+            throw new Error(`Invalid channel_id: ${channel_id}. Please try the command again.`);
+          }
+
+          console.log(`[discord] Sending request with channelId="${channel_id}", serverId="${guild_id}", lookbackMinutes=${lookbackMinutes}`);
+
           // Make request to entrypoint (without payment headers - it will return payment instructions)
           const entrypointResponse = await fetch(entrypointUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               input: {
-                channelId: channel_id,
-                serverId: guild_id,
+                channelId: channel_id.trim(),
+                serverId: guild_id || undefined,
                 lookbackMinutes,
               },
             }),
           });
 
           const responseData = await entrypointResponse.json();
+
+          // Check for validation errors
+          if (entrypointResponse.status === 400) {
+            const errorMsg = responseData.error?.issues?.[0]?.message || responseData.error?.message || "Validation error";
+            console.error(`[discord] Entrypoint validation error:`, responseData);
+            await fetch(followupUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                content: `❌ **Validation Error**\n${errorMsg}\n\nIf this persists, please check Railway logs for details.`,
+              }),
+            });
+            return;
+          }
 
           // Check if payment is required
           if (entrypointResponse.status === 402 || responseData.error?.code === "payment_required") {
