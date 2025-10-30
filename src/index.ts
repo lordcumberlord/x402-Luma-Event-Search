@@ -50,22 +50,7 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
 
     const body = await req.text();
     
-    // Parse interaction first to handle PING immediately
-    let interaction;
-    try {
-      interaction = JSON.parse(body);
-    } catch (e) {
-      console.error("[discord] Failed to parse interaction body:", e);
-      return Response.json({ error: "Invalid JSON" }, { status: 400 });
-    }
-
-    // Handle PING immediately (Discord's verification)
-    if (interaction.type === 1) {
-      console.log("[discord] Received PING, responding with PONG");
-      return Response.json({ type: 1 });
-    }
-
-    // For other interactions, verify signature if PUBLIC_KEY is set
+    // Verify signature FIRST if PUBLIC_KEY is set (required for Discord verification)
     if (PUBLIC_KEY) {
       if (!signature || !timestamp) {
         console.warn("[discord] Missing signature headers");
@@ -78,7 +63,22 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
         return Response.json({ error: "Invalid signature" }, { status: 401 });
       }
     } else {
-      console.warn("[discord] DISCORD_PUBLIC_KEY not set, skipping signature verification");
+      console.warn("[discord] DISCORD_PUBLIC_KEY not set - signature verification disabled");
+    }
+    
+    // Parse interaction after signature verification
+    let interaction;
+    try {
+      interaction = JSON.parse(body);
+    } catch (e) {
+      console.error("[discord] Failed to parse interaction body:", e);
+      return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    // Handle PING (Discord's verification)
+    if (interaction.type === 1) {
+      console.log("[discord] Received PING, responding with PONG");
+      return Response.json({ type: 1 });
     }
 
   // Handle APPLICATION_COMMAND
