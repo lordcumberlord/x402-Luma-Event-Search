@@ -103,12 +103,38 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
 
   // Handle APPLICATION_COMMAND
   if (interaction.type === 2) {
-    const { name, options, channel_id, guild_id } = interaction.data || {};
+    const { name, options } = interaction.data || {};
+    // channel_id and guild_id are at the interaction level, not in data
+    const channel_id = interaction.channel_id || interaction.channel?.id;
+    const guild_id = interaction.guild_id || interaction.guild?.id;
 
     if (name === "summarise") {
       // Get lookback minutes from options (default: 60)
       const lookbackOption = options?.find((opt: any) => opt.name === "minutes");
       const lookbackMinutes = lookbackOption?.value ?? 60;
+      
+      // Debug: log interaction structure
+      console.log(`[discord] Interaction structure:`, JSON.stringify({
+        channel_id: interaction.channel_id,
+        channel: interaction.channel,
+        guild_id: interaction.guild_id,
+        guild: interaction.guild,
+        data: interaction.data,
+      }, null, 2));
+
+      // Validate required fields
+      if (!channel_id) {
+        console.error(`[discord] Missing channel_id in interaction:`, JSON.stringify(interaction, null, 2));
+        const followupUrl = `${process.env.DISCORD_API_BASE_URL ?? DISCORD_API_DEFAULT_BASE}/webhooks/${interaction.application_id}/${interaction.token}`;
+        await fetch(followupUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: "❌ Error: Could not determine channel ID from interaction.",
+          }),
+        });
+        return Response.json({ error: "Missing channel_id" }, { status: 400 });
+      }
 
       // Respond immediately with "thinking"
       const initialResponse = Response.json({
