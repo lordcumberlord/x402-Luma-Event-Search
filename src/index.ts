@@ -454,7 +454,7 @@ const server = Bun.serve({
       
       try {
         const response = await fetch('${entrypointUrl}', {
-          method: ' contestants',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             input: {
