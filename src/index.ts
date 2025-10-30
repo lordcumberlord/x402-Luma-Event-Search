@@ -98,6 +98,8 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
       // Process in background
       (async () => {
         try {
+          console.log(`[discord] Processing summarise command: channel=${channel_id}, guild=${guild_id}, minutes=${lookbackMinutes}`);
+          
           const token = process.env.DISCORD_BOT_TOKEN;
           if (!token) {
             throw new Error("DISCORD_BOT_TOKEN not set");
@@ -108,6 +110,8 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
             serverId: guild_id,
             lookbackMinutes,
           });
+
+          console.log(`[discord] Summary completed: ${result.summary.substring(0, 50)}...`);
 
           // Format response
           let content = `**Summary**\n${result.summary}\n\n`;
@@ -122,26 +126,46 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
             process.env.DISCORD_API_BASE_URL ?? DISCORD_API_DEFAULT_BASE;
           const followupUrl = `${baseUrl}/webhooks/${interaction.application_id}/${interaction.token}`;
 
-          await fetch(followupUrl, {
+          console.log(`[discord] Sending follow-up to: ${followupUrl}`);
+
+          const followupResponse = await fetch(followupUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               content,
             }),
           });
+
+          if (!followupResponse.ok) {
+            const errorText = await followupResponse.text();
+            console.error(`[discord] Failed to send follow-up: ${followupResponse.status} ${errorText}`);
+            throw new Error(`Failed to send response: ${followupResponse.status}`);
+          }
+
+          console.log(`[discord] Successfully sent summary response`);
         } catch (error: any) {
+          console.error(`[discord] Error processing command:`, error);
           const errorMsg = error.message || "An error occurred";
           const baseUrl =
             process.env.DISCORD_API_BASE_URL ?? DISCORD_API_DEFAULT_BASE;
           const followupUrl = `${baseUrl}/webhooks/${interaction.application_id}/${interaction.token}`;
 
-          await fetch(followupUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: `❌ Error: ${errorMsg}`,
-            }),
-          });
+          try {
+            const errorResponse = await fetch(followupUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                content: `❌ Error: ${errorMsg}`,
+              }),
+            });
+
+            if (!errorResponse.ok) {
+              const errorText = await errorResponse.text();
+              console.error(`[discord] Failed to send error message: ${errorResponse.status} ${errorText}`);
+            }
+          } catch (fetchError) {
+            console.error(`[discord] Failed to send error response:`, fetchError);
+          }
         }
       })();
 
