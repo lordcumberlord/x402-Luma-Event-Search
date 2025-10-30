@@ -5,6 +5,26 @@ const port = Number(process.env.PORT ?? 8787);
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY;
 const DISCORD_API_DEFAULT_BASE = "https://discord.com/api/v10";
 
+// Store Discord webhook info temporarily for payment callbacks
+// Map: interaction_token -> { application_id, channel_id, guild_id, lookbackMinutes }
+const pendingDiscordCallbacks = new Map<string, {
+  applicationId: string;
+  channelId: string;
+  guildId: string | null;
+  lookbackMinutes: number;
+  expiresAt: number;
+}>();
+
+// Clean up expired callbacks every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of pendingDiscordCallbacks.entries()) {
+    if (data.expiresAt < now) {
+      pendingDiscordCallbacks.delete(token);
+    }
+  }
+}, 30 * 60 * 1000);
+
 // Discord signature verification using Ed25519
 function verifyDiscordRequest(
   body: string,
@@ -127,16 +147,25 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
 
           // Check if payment is required
           if (entrypointResponse.status === 402 || responseData.error?.code === "payment_required") {
+            // Store Discord webhook info for callback (expires in 1 hour)
+            pendingDiscordCallbacks.set(interaction.token, {
+              applicationId: interaction.application_id,
+              channelId: channel_id,
+              guildId: guild_id,
+              lookbackMinutes,
+              expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+            });
+
             // Send payment instructions to Discord user
-            const paymentUrl = `${agentBaseUrl}/entrypoints/summarise%20chat/invoke`;
-            const callbackWebhook = `${agentBaseUrl}/discord-callback?token=${interaction.token}&application_id=${interaction.application_id}`;
+            const callbackParam = encodeURIComponent(interaction.token);
+            const paymentUrl = `${agentBaseUrl}/entrypoints/summarise%20chat/invoke?channelId=${channel_id}&serverId=${guild_id || ""}&lookbackMinutes=${lookbackMinutes}&discord_callback=${callbackParam}`;
             
             const paymentMessage = `💳 **Payment Required**
 
 To summarise this channel, please pay **0.05 ETH** via x402.
 
 🔗 **Pay & Summarise:**
-${paymentUrl}?channelId=${channel_id}&serverId=${guild_id}&lookbackMinutes=${lookbackMinutes}
+${paymentUrl}
 
 After payment, your summary will appear here automatically.`;
 
@@ -221,6 +250,63 @@ After payment, your summary will appear here automatically.`;
   }
 }
 
+// Handle Discord callback after payment
+async function handleDiscordCallback(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+    const { discord_token, result } = body;
+
+    if (!discord_token) {
+      return Response.json({ error: "Missing discord_token" }, { status: 400 });
+    }
+
+    const callbackData = pendingDiscordCallbacks.get(discord_token);
+    if (!callbackData) {
+      return Response.json({ error: "Invalid or expired callback token" }, { status: 404 });
+    }
+
+    // Remove from pending
+    pendingDiscordCallbacks.delete(discord_token);
+
+    // Send result to Discord
+    const baseUrl = process.env.DISCORD_API_BASE_URL ?? DISCORD_API_DEFAULT_BASE;
+    const followupUrl = `${baseUrl}/webhooks/${callbackData.applicationId}/${discord_token}`;
+
+    const output = result?.output || result;
+    let content = `✅ **Payment Confirmed**\n\n`;
+    content += `**Summary**\n${output?.summary || "No summary available"}\n\n`;
+    
+    if (output?.actionables && output.actionables.length > 0) {
+      content += `**Action Items**\n${output.actionables.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n")}`;
+    } else {
+      content += `*No action items identified.*`;
+    }
+
+    const followupResponse = await fetch(followupUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content,
+      }),
+    });
+
+    if (!followupResponse.ok) {
+      const errorText = await followupResponse.text();
+      console.error(`[discord] Failed to send callback result: ${followupResponse.status} ${errorText}`);
+      return Response.json({ error: "Failed to send result to Discord" }, { status: 500 });
+    }
+
+    console.log(`[discord] Successfully sent callback result to Discord`);
+    return Response.json({ success: true });
+  } catch (error: any) {
+    console.error("[discord] Error handling callback:", error);
+    return Response.json(
+      { error: "Internal server error", message: error?.message },
+      { status: 500 }
+    );
+  }
+}
+
 const server = Bun.serve({
   port,
   async fetch(req) {
@@ -246,6 +332,45 @@ const server = Bun.serve({
       }
     }
 
+    // Discord payment callback endpoint
+    if (url.pathname === "/discord-callback" && req.method === "POST") {
+      return handleDiscordCallback(req);
+    }
+
+    // Agent app routes - intercept entrypoint responses for Discord callbacks
+    if (url.pathname.includes("/entrypoints/") && url.pathname.includes("/invoke")) {
+      const discordCallback = url.searchParams.get("discord_callback");
+      
+      if (discordCallback) {
+        // Clone the request and call the app
+        const response = await app.fetch(req);
+        
+        // If successful (2xx), also send result to Discord callback
+        if (response.status >= 200 && response.status < 300) {
+          try {
+            const result = await response.clone().json();
+            
+            // POST to Discord callback endpoint
+            const callbackUrl = new URL("/discord-callback", url.origin);
+            await fetch(callbackUrl.toString(), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                discord_token: decodeURIComponent(discordCallback),
+                result,
+              }),
+            }).catch((err) => {
+              console.error("[discord] Failed to trigger callback:", err);
+            });
+          } catch (err) {
+            console.error("[discord] Failed to parse entrypoint response:", err);
+          }
+        }
+        
+        return response;
+      }
+    }
+    
     // Agent app routes
     return app.fetch(req);
   },
