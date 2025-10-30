@@ -541,20 +541,44 @@ export async function executeSummariseChat(input: {
     };
   }
 
-  const result = await discordSummaryFlow.forward(llm, {
-    conversation,
-    timeWindow,
-    channelLabel,
-  });
+  try {
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("LLM request timed out after 30 seconds")), 30000);
+    });
 
-  discordSummaryFlow.resetUsage();
+    const flowPromise = discordSummaryFlow.forward(llm, {
+      conversation,
+      timeWindow,
+      channelLabel,
+    });
 
-  return {
-    summary: result.summary ?? "",
-    actionables: Array.isArray(result.actionables)
-      ? (result.actionables as string[])
-      : [],
-  };
+    const result = await Promise.race([flowPromise, timeoutPromise]) as typeof flowPromise extends Promise<infer T> ? T : never;
+
+    discordSummaryFlow.resetUsage();
+
+    return {
+      summary: result.summary ?? "",
+      actionables: Array.isArray(result.actionables)
+        ? (result.actionables as string[])
+        : [],
+    };
+  } catch (error: any) {
+    console.error("[discord-summary-agent] LLM flow error:", error);
+    // Fallback to simple summary if LLM fails
+    const fallbackSummary = conversation
+      .split("\n")
+      .slice(0, 5)
+      .join("\n")
+      .trim();
+
+    return {
+      summary:
+        fallbackSummary ||
+        `Messages retrieved (${rangeLabel}), but failed to generate AI summary: ${error.message}`,
+      actionables: [],
+    };
+  }
 }
 
 function formatConversation(messages: DiscordMessage[]): string {
