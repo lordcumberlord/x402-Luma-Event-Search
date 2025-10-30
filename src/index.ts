@@ -224,11 +224,14 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
 
             // Send payment instructions to Discord user
             const callbackParam = encodeURIComponent(interaction.token);
-            const paymentUrl = `${agentBaseUrl}/entrypoints/summarise%20chat/invoke?channelId=${channel_id}&serverId=${guild_id || ""}&lookbackMinutes=${lookbackMinutes}&discord_callback=${callbackParam}`;
+            const paymentUrl = `${agentBaseUrl}/pay?channelId=${channel_id}&serverId=${guild_id || ""}&lookbackMinutes=${lookbackMinutes}&discord_callback=${callbackParam}`;
+            
+            // Get price from entrypoint config or default
+            const price = process.env.ENTRYPOINT_PRICE || "0.001";
             
             const paymentMessage = `💳 **Payment Required**
 
-To summarise this channel, please pay **0.05 ETH** via x402.
+To summarise this channel, please pay **${price} ETH** via x402.
 
 🔗 **Pay & Summarise:**
 ${paymentUrl}
@@ -401,6 +404,94 @@ const server = Bun.serve({
     // Discord payment callback endpoint
     if (url.pathname === "/discord-callback" && req.method === "POST") {
       return handleDiscordCallback(req);
+    }
+
+    // Payment page - handles GET requests and shows payment UI
+    if (url.pathname === "/pay" && req.method === "GET") {
+      const channelId = url.searchParams.get("channelId");
+      const serverId = url.searchParams.get("serverId");
+      const lookbackMinutes = url.searchParams.get("lookbackMinutes");
+      const discordCallback = url.searchParams.get("discord_callback");
+      
+      if (!channelId || !lookbackMinutes) {
+        return Response.json({ error: "Missing required parameters" }, { status: 400 });
+      }
+
+      const entrypointUrl = `/entrypoints/summarise%20chat/invoke`;
+      const price = process.env.ENTRYPOINT_PRICE || "0.001";
+      
+      return new Response(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Pay to Summarise Discord Channel</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+    .container { background: #f5f5f5; padding: 30px; border-radius: 12px; }
+    h1 { color: #333; margin-top: 0; }
+    .info { background: white; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    .button { background: #5865F2; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 20px; }
+    .button:hover { background: #4752C4; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💳 Pay to Summarise Discord Channel</h1>
+    <div class="info">
+      <p><strong>Price:</strong> ${price} ETH</p>
+      <p><strong>Channel ID:</strong> ${channelId}</p>
+      <p><strong>Lookback:</strong> ${lookbackMinutes} minutes</p>
+    </div>
+    <p>Click below to pay via x402. After payment, your summary will automatically appear in Discord.</p>
+    <button class="button" onclick="pay()">Pay ${price} ETH</button>
+    <div id="status" style="margin-top: 20px;"></div>
+  </div>
+  <script type="module">
+    async function pay() {
+      const status = document.getElementById('status');
+      status.innerHTML = '<p>Processing payment...</p>';
+      
+      try {
+        const response = await fetch('${entrypointUrl}', {
+          method: ' contestants',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: {
+              channelId: '${channelId}',
+              serverId: '${serverId || ""}',
+              lookbackMinutes: ${lookbackMinutes},
+            },
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          status.innerHTML = '<p style="color: green;">✅ Payment successful! Check Discord for your summary.</p>';
+          ${discordCallback ? `fetch('/discord-callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              discord_token: '${discordCallback}',
+              result: data,
+            }),
+          }).catch(err => console.error('Callback error:', err));` : ''}
+        } else if (response.status === 402) {
+          status.innerHTML = '<p style="color: orange;">Payment required. Please connect your x402 wallet and try again.</p>';
+        } else {
+          status.innerHTML = '<p style="color: red;">Error: ' + (data.error?.message || JSON.stringify(data)) + '</p>';
+        }
+      } catch (error) {
+        status.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+      }
+    }
+    window.pay = pay;
+  </script>
+</body>
+</html>`, {
+        headers: { "Content-Type": "text/html" },
+      });
     }
 
     // Agent app routes - intercept entrypoint responses for Discord callbacks

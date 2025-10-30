@@ -202,7 +202,7 @@ addEntrypoint({
         });
       }
     }),
-  price: "0.05",
+  price: process.env.ENTRYPOINT_PRICE || "0.001", // Default to 0.001 ETH (or set via ENTRYPOINT_PRICE env var)
   output: z.object({
     summary: z.string(),
     actionables: z.array(z.string()),
