@@ -227,11 +227,12 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
             const paymentUrl = `${agentBaseUrl}/pay?channelId=${channel_id}&serverId=${guild_id || ""}&lookbackMinutes=${lookbackMinutes}&discord_callback=${callbackParam}`;
             
             // Get price from entrypoint config or default
-            const price = process.env.ENTRYPOINT_PRICE || "0.001";
+            const price = process.env.ENTRYPOINT_PRICE || "0.10";
+            const currency = process.env.PAYMENT_CURRENCY || "USDC";
             
             const paymentMessage = `💳 **Payment Required**
 
-To summarise this channel, please pay **${price} ETH** via x402.
+To summarise this channel, please pay **$${price} ${currency}** via x402.
 
 🔗 **Pay & Summarise:**
 ${paymentUrl}
