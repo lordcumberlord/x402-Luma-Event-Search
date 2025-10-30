@@ -95,38 +95,76 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
         type: 5, // DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
       });
 
-      // Process in background
+      // Process in background - route through x402 payment-enabled entrypoint
       (async () => {
         try {
           console.log(`[discord] Processing summarise command: channel=${channel_id}, guild=${guild_id}, minutes=${lookbackMinutes}`);
           
-          const token = process.env.DISCORD_BOT_TOKEN;
-          if (!token) {
-            throw new Error("DISCORD_BOT_TOKEN not set");
-          }
-
-          const result = await executeSummariseChat({
-            channelId: channel_id,
-            serverId: guild_id,
-            lookbackMinutes,
-          });
-
-          console.log(`[discord] Summary completed: ${result.summary.substring(0, 50)}...`);
-
-          // Format response
-          let content = `**Summary**\n${result.summary}\n\n`;
-          if (result.actionables.length > 0) {
-            content += `**Action Items**\n${result.actionables.map((a, i) => `${i + 1}. ${a}`).join("\n")}`;
-          } else {
-            content += `*No action items identified.*`;
-          }
-
-          // Send follow-up message
           const baseUrl =
             process.env.DISCORD_API_BASE_URL ?? DISCORD_API_DEFAULT_BASE;
           const followupUrl = `${baseUrl}/webhooks/${interaction.application_id}/${interaction.token}`;
 
-          console.log(`[discord] Sending follow-up to: ${followupUrl}`);
+          // Call the agent-kit entrypoint (which handles x402 payments)
+          const agentBaseUrl = process.env.AGENT_URL || `https://x402-summariser-production.up.railway.app`;
+          const entrypointUrl = `${agentBaseUrl}/entrypoints/summarise%20chat/invoke`;
+          
+          console.log(`[discord] Calling entrypoint: ${entrypointUrl}`);
+
+          // Make request to entrypoint (without payment headers - it will return payment instructions)
+          const entrypointResponse = await fetch(entrypointUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              input: {
+                channelId: channel_id,
+                serverId: guild_id,
+                lookbackMinutes,
+              },
+            }),
+          });
+
+          const responseData = await entrypointResponse.json();
+
+          // Check if payment is required
+          if (entrypointResponse.status === 402 || responseData.error?.code === "payment_required") {
+            // Send payment instructions to Discord user
+            const paymentUrl = `${agentBaseUrl}/entrypoints/summarise%20chat/invoke`;
+            const callbackWebhook = `${agentBaseUrl}/discord-callback?token=${interaction.token}&application_id=${interaction.application_id}`;
+            
+            const paymentMessage = `💳 **Payment Required**
+
+To summarise this channel, please pay **0.05 ETH** via x402.
+
+🔗 **Pay & Summarise:**
+${paymentUrl}?channelId=${channel_id}&serverId=${guild_id}&lookbackMinutes=${lookbackMinutes}
+
+After payment, your summary will appear here automatically.`;
+
+            await fetch(followupUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                content: paymentMessage,
+              }),
+            });
+            return;
+          }
+
+          if (!entrypointResponse.ok) {
+            throw new Error(`Entrypoint error: ${entrypointResponse.status} ${JSON.stringify(responseData)}`);
+          }
+
+          // Success - format and send result
+          const output = responseData.output || responseData;
+          let content = `**Summary**\n${output.summary || "No summary available"}\n\n`;
+          
+          if (output.actionables && output.actionables.length > 0) {
+            content += `**Action Items**\n${output.actionables.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n")}`;
+          } else {
+            content += `*No action items identified.*`;
+          }
+
+          console.log(`[discord] Summary completed: ${(output.summary || "").substring(0, 50)}...`);
 
           const followupResponse = await fetch(followupUrl, {
             method: "POST",
