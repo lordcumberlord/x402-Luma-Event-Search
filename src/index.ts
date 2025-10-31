@@ -717,8 +717,14 @@ const server = Bun.serve({
         const paymentHeaders = allHeaders.filter(([key]) => key.toLowerCase().includes('payment'));
         console.log('💳 All payment-related headers:', paymentHeaders);
         
+        // Log the full response object to check for transaction info
+        console.log('🔍 Full response object keys:', Object.keys(response));
+        console.log('🔍 Response body used:', response.bodyUsed);
+        
         const data = await response.json();
         console.log('📦 Response data:', data);
+        console.log('📦 Response data keys:', Object.keys(data));
+        console.log('📦 Response data (full JSON):', JSON.stringify(data, null, 2));
         
         // Extract transaction hash from various possible locations
         let txHash = null;
@@ -734,8 +740,10 @@ const server = Bun.serve({
           }
         }
         
+        // Check in response data recursively
         if (!txHash && data.payment) {
           txHash = data.payment.txHash || data.payment.transactionHash || data.payment.hash;
+          console.log('💳 Found in data.payment:', data.payment);
         }
         
         if (!txHash && data.txHash) {
@@ -744,6 +752,29 @@ const server = Bun.serve({
         
         if (!txHash && data.transactionHash) {
           txHash = data.transactionHash;
+        }
+        
+        // Check in nested locations (x402 might store it differently)
+        if (!txHash && data.metadata && data.metadata.payment) {
+          txHash = data.metadata.payment.txHash || data.metadata.payment.transactionHash || data.metadata.payment.hash;
+        }
+        
+        if (!txHash && data.context && data.context.payment) {
+          txHash = data.context.payment.txHash || data.context.payment.transactionHash || data.context.payment.hash;
+        }
+        
+        // Check for any field containing "tx" or "hash"
+        if (!txHash) {
+          for (const key in data) {
+            if (key.toLowerCase().includes('tx') || key.toLowerCase().includes('hash')) {
+              const value = data[key];
+              console.log('🔍 Found potential tx field: ' + key + ' = ' + value);
+              if (typeof value === 'string' && value.startsWith('0x')) {
+                txHash = value;
+                break;
+              }
+            }
+          }
         }
         
         if (txHash) {
