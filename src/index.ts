@@ -484,29 +484,39 @@ const server = Bun.serve({
         "x402-fetch": "https://esm.sh/x402-fetch@0.7.0?bundle",
         "x402/types": "https://esm.sh/x402@0.7.0/types?bundle",
         "x402/client": "https://esm.sh/x402@0.7.0/client?bundle",
-        "x402/shared": "https://esm.sh/x402@0.7.0/shared?bundle"
+        "x402/shared": "https://esm.sh/x402@0.7.0/shared?bundle",
+        "viem": "https://esm.sh/viem@2.21.26?bundle"
       }
     }
   </script>
   <script type="module">
     let wrapFetchWithPayment;
+    let createWalletClient;
+    let custom;
+    let base;
     let moduleLoaded = false;
     
-    // Load x402-fetch using import map (esm.sh with bundle flag handles dependencies)
+    // Load x402-fetch and viem using import map (esm.sh with bundle flag handles dependencies)
     (async () => {
       try {
-        console.log('Loading x402-fetch via esm.sh (bundled)...');
-        const module = await import('x402-fetch');
-        wrapFetchWithPayment = module.wrapFetchWithPayment;
+        console.log('Loading x402-fetch and viem via esm.sh (bundled)...');
+        const [x402Module, viemModule] = await Promise.all([
+          import('x402-fetch'),
+          import('viem')
+        ]);
+        wrapFetchWithPayment = x402Module.wrapFetchWithPayment;
+        createWalletClient = viemModule.createWalletClient;
+        custom = viemModule.custom;
+        base = viemModule.base;
         
-        if (wrapFetchWithPayment) {
-          console.log('✅ x402-fetch loaded successfully');
+        if (wrapFetchWithPayment && createWalletClient && custom && base) {
+          console.log('✅ x402-fetch and viem loaded successfully');
           moduleLoaded = true;
         } else {
-          console.error('❌ wrapFetchWithPayment not found. Available exports:', Object.keys(module));
+          console.error('❌ Missing exports. wrapFetchWithPayment:', !!wrapFetchWithPayment, 'createWalletClient:', !!createWalletClient, 'custom:', !!custom, 'base:', !!base);
         }
       } catch (importError) {
-        console.error('❌ Failed to import x402-fetch:', importError);
+        console.error('❌ Failed to import modules:', importError);
         console.error('Error details:', importError.message);
       }
     })();
@@ -520,9 +530,9 @@ const server = Bun.serve({
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      if (!wrapFetchWithPayment) {
-        status.innerHTML = '<p style="color: red;">⚠️ Error: Could not load x402 payment library.</p><p style="font-size: 12px; color: #666;">Please refresh the page and try again.</p>';
-        console.error('❌ x402-fetch is not available');
+      if (!wrapFetchWithPayment || !createWalletClient || !custom || !base) {
+        status.innerHTML = '<p style="color: red;">⚠️ Error: Could not load payment libraries.</p><p style="font-size: 12px; color: #666;">Please refresh the page and try again.</p>';
+        console.error('❌ Required modules not available. wrapFetchWithPayment:', !!wrapFetchWithPayment, 'createWalletClient:', !!createWalletClient);
         return;
       }
       
@@ -538,29 +548,38 @@ const server = Bun.serve({
         const walletProvider = window.ethereum || window.x402;
         
         // Request wallet connection (required for MetaMask)
+        let accountAddress;
         if (walletProvider.request) {
           try {
-            await walletProvider.request({ method: 'eth_requestAccounts' });
-            console.log('✅ Wallet connected');
+            const accounts = await walletProvider.request({ method: 'eth_requestAccounts' });
+            console.log('✅ Wallet connected, accounts:', accounts);
+            
+            if (!accounts || accounts.length === 0) {
+              throw new Error('No accounts found. Please unlock your wallet.');
+            }
+            
+            accountAddress = accounts[0];
           } catch (connError) {
             if (connError.code === 4001) {
-              throw new Error('Wallet connection rejected. Please approve the connection to continue.');
+              throw new Error('Wallet connection rejected. Please approve the connection to rows continue.');
             }
             throw connError;
           }
         }
         
-        // Log wallet provider structure for debugging
-        console.log('🔍 Wallet provider type:', typeof walletProvider);
-        console.log('🔍 Wallet provider keys:', Object.keys(walletProvider || {}));
-        console.log('🔍 Wallet provider has request:', typeof walletProvider?.request);
-        console.log('🔍 Wallet provider has send:', typeof walletProvider?.send);
-        console.log('🔍 Wallet provider has sendAsync:', typeof walletProvider?.sendAsync);
+        // Create a viem wallet client (x402-fetch expects this format)
+        console.log('🔄 Creating wallet client with viem...');
+        const walletClient = createWalletClient({
+          account: accountAddress,
+          chain: base,
+          transport: custom(walletProvider)
+        });
+        console.log('✅ Wallet client created:', { address: accountAddress });
         
-        // Wrap fetch with payment handling (pass wallet provider directly, not a signer)
+        // Wrap fetch with payment handling (pass viem wallet client)
         // maxValue: 0.10 USDC = 100000 (6 decimals)
         console.log('🔄 Creating x402Fetch wrapper...');
-        const x402Fetch = wrapFetchWithPayment(fetch, walletProvider, BigInt(100000));
+        const x402Fetch = wrapFetchWithPayment(fetch, walletClient, BigInt(100000));
         
         const entrypointUrl = '${entrypointUrl}';
         console.log('📞 Calling entrypoint:', entrypointUrl);
