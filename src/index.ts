@@ -550,8 +550,16 @@ const server = Bun.serve({
           }
         }
         
+        // Log wallet provider structure for debugging
+        console.log('🔍 Wallet provider type:', typeof walletProvider);
+        console.log('🔍 Wallet provider keys:', Object.keys(walletProvider || {}));
+        console.log('🔍 Wallet provider has request:', typeof walletProvider?.request);
+        console.log('🔍 Wallet provider has send:', typeof walletProvider?.send);
+        console.log('🔍 Wallet provider has sendAsync:', typeof walletProvider?.sendAsync);
+        
         // Wrap fetch with payment handling (pass wallet provider directly, not a signer)
         // maxValue: 0.10 USDC = 100000 (6 decimals)
+        console.log('🔄 Creating x402Fetch wrapper...');
         const x402Fetch = wrapFetchWithPayment(fetch, walletProvider, BigInt(100000));
         
         const entrypointUrl = '${entrypointUrl}';
