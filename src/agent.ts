@@ -20,12 +20,23 @@ type DiscordAttachment = {
   url: string;
 };
 
+type DiscordReaction = {
+  emoji: {
+    id?: string | null;
+    name: string;
+    animated?: boolean;
+  };
+  count: number;
+  me?: boolean;
+};
+
 type DiscordMessage = {
   id: string;
   content: string;
   timestamp: string;
   author?: DiscordAuthor;
   attachments?: DiscordAttachment[];
+  reactions?: DiscordReaction[];
 };
 
 type DiscordChannelInfo = {
@@ -94,7 +105,7 @@ const discordSummaryFlow = flow<{
 }>()
   .node(
     "summarizer",
-    'conversation:string, timeWindow:string, channelLabel:string, lookbackMinutes?:number -> summary:string "You are a friendly Discord channel summarizer. Analyze the conversation and provide a cordial summary in bullet point format. Start with a brief greeting (e.g., \"Good morning!\", \"Hey there!\", etc.) based on the time of day, then say something like \"Here is what happened in the last X minutes:\" and provide bullet points covering: key conclusions reached, any opposition or disagreements, important highlights, and anything funny or notable (pay attention to messages that likely received many emoji reactions). Do NOT include timestamps in your summary. Be concise and friendly. Format as bullet points using \"•\" characters."'
+    'conversation:string, timeWindow:string, channelLabel:string, lookbackMinutes?:number -> summary:string "You are a friendly Discord channel summarizer. Analyze the conversation and provide a cordial summary in bullet point format. Start with a brief greeting (e.g., \"Good morning!\", \"Hey there!\", etc.) based on the time of day, then say something like \"Here is what happened in the last X minutes:\" and provide bullet points covering: key conclusions reached, any opposition or disagreements, important highlights, and anything funny or notable. Messages with many emoji reactions (shown as \"emoji xN\" format, e.g., \"😀 x5\") are likely important or funny - prioritize these in your summary. Do NOT include timestamps in your summary. Be concise and friendly. Format as bullet points using \"•\" characters."'
   )
   .node(
     "actionables",
@@ -626,7 +637,6 @@ function formatConversation(messages: DiscordMessage[]): string {
         message.author?.display_name ||
         message.author?.username ||
         "Unknown user";
-      const timestamp = new Date(message.timestamp).toISOString();
 
       const attachmentNotes =
         message.attachments && message.attachments.length
@@ -640,15 +650,26 @@ function formatConversation(messages: DiscordMessage[]): string {
               .join(" ")
           : "";
 
-      const content = [message.content, attachmentNotes]
+      // Format reactions if present (e.g., "😀 x5, 👍 x3")
+      const reactionNotes =
+        message.reactions && message.reactions.length > 0
+          ? message.reactions
+              .map((r) => {
+                const emoji = r.emoji.id 
+                  ? `<:${r.emoji.name}:${r.emoji.id}>`
+                  : r.emoji.name;
+                return `${emoji} x${r.count}`;
+              })
+              .join(", ")
+          : "";
+
+      const content = [message.content, attachmentNotes, reactionNotes]
         .filter(Boolean)
         .join(" ")
         .replace(/\s+/g, " ")
         .trim();
 
-      return `[${timestamp}] ${author}: ${
-        content || "(no text content)"
-      }`;
+      return `${author}: ${content || "(no text content)"}`;
     })
     .join("\n");
 }
