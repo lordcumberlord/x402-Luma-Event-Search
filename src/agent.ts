@@ -819,6 +819,10 @@ function normalizeSummaryBullets(
     return trimmed;
   }
 
+  const speakerSet = new Set(
+    conversationEntries.map((entry) => normalizeName(entry.speaker))
+  );
+
   const lines = trimmed.split(/\n+/);
   let introLine = lines[0].trim();
   let bodyText = lines.slice(1).join("\n").trim();
@@ -843,7 +847,7 @@ function normalizeSummaryBullets(
     .filter(Boolean);
 
   const bullets = bulletSources
-    .map((line) => transformLineToBullet(line, conversationEntries))
+    .map((line) => transformLineToBullet(line, conversationEntries, speakerSet))
     .filter(Boolean);
 
   const filteredBullets = filterAndRankBullets(bullets);
@@ -857,7 +861,8 @@ function normalizeSummaryBullets(
 
 function transformLineToBullet(
   line: string,
-  conversationEntries: ConversationEntry[]
+  conversationEntries: ConversationEntry[],
+  speakerSet: Set<string>
 ): string {
   let text = line.trim();
   if (!text) {
@@ -881,6 +886,15 @@ function transformLineToBullet(
   if (colonMatch) {
     speaker = colonMatch[1].trim();
     statement = colonMatch[2].trim();
+  } else {
+    const impliedMatch = text.match(/^([A-Z][A-Za-z0-9']{2,})(?:\s+|,|--)(.+)$/);
+    if (impliedMatch) {
+      const candidate = impliedMatch[1].trim();
+      if (speakerSet.has(normalizeName(candidate))) {
+        speaker = candidate;
+        statement = impliedMatch[2].trim();
+      }
+    }
   }
 
   if (!statement) {
@@ -888,7 +902,7 @@ function transformLineToBullet(
   }
 
   const body = speaker
-    ? buildSentenceWithSpeaker(speaker, statement, conversationEntries)
+    ? buildSentenceWithSpeaker(speaker, statement, conversationEntries, speakerSet)
     : buildSentence(statement);
 
   return body ? "• " + body : "";
@@ -974,7 +988,8 @@ function scoreBullet(bullet: string): number {
 function buildSentenceWithSpeaker(
   speaker: string,
   statement: string,
-  conversationEntries: ConversationEntry[]
+  conversationEntries: ConversationEntry[],
+  speakerSet: Set<string>
 ): string {
   const normalizedSpeaker = capitalizeWords(speaker);
   const cleaned = statement.replace(/\s+/g, " ").trim();
@@ -1002,7 +1017,7 @@ function buildSentenceWithSpeaker(
     );
   }
 
-  return rewriteStatementBullet(normalizedSpeaker, clauseSource);
+  return rewriteStatementBullet(normalizedSpeaker, clauseSource, speakerSet);
 }
 
 function buildSentence(statement: string): string {
@@ -1049,7 +1064,8 @@ function rewriteQuestionBullet(
 
 function rewriteStatementBullet(
   speaker: string,
-  clauseSource: string
+  clauseSource: string,
+  speakerSet: Set<string>
 ): string {
   let clause = clauseSource.trim();
 
@@ -1065,7 +1081,8 @@ function rewriteStatementBullet(
   const firstWordMatch = clause.match(/^([A-Z][A-Za-z0-9']*)\b/);
   if (
     firstWordMatch &&
-    firstWordMatch[1].toLowerCase() !== speaker.toLowerCase()
+    firstWordMatch[1].toLowerCase() !== speaker.toLowerCase() &&
+    speakerSet.has(normalizeName(firstWordMatch[1]))
   ) {
     return ensurePeriod(capitalizeFirst(clause));
   }
