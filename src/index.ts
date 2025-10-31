@@ -905,7 +905,10 @@ const server = Bun.serve({
         if (!hasPaymentHeader) {
           // Return 402 Payment Required with proper payment requirements
           const payToAddress = process.env.PAY_TO || "0x1b0006DbFbF4d8Ec99cd7C40C43566EaA7D95feD";
-          const fullEntrypointUrl = url.origin + url.pathname + (url.search ? url.search : "");
+          
+          // Always use HTTPS for the resource URL, even if request came in via HTTP
+          const agentBaseUrl = process.env.AGENT_URL || `https://x402-summariser-production.up.railway.app`;
+          const fullEntrypointUrl = agentBaseUrl + url.pathname + (url.search ? url.search : "");
           
           console.log(`[payment] Returning 402 Payment Required for: ${fullEntrypointUrl}`);
           // Calculate formatted price for description
