@@ -638,8 +638,19 @@ const server = Bun.serve({
         
         // Wrap fetch with payment handling (pass viem wallet client)
         // maxValue: 0.10 USDC = 100000 (6 decimals)
+        // Note: x402 uses EIP-3009 for gasless transactions - facilitator pays gas
         console.log('🔄 Creating x402Fetch wrapper...');
+        console.log('💳 Payment details:', {
+          maxAmount: BigInt(100000),
+          maxAmountFormatted: '0.10 USDC',
+          chain: 'Base (8453)',
+          asset: 'USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)',
+          walletAddress: accountAddress,
+          gasless: true, // Facilitator pays gas fees via EIP-3009
+          facilitator: 'https://facilitator.daydreams.systems'
+        });
         const x402Fetch = wrapFetchWithPayment(fetch, walletClient, BigInt(100000));
+        console.log('✅ x402Fetch wrapper created');
         
         const entrypointUrl = '${entrypointUrl}';
         console.log('📞 Calling entrypoint:', entrypointUrl);
@@ -647,7 +658,21 @@ const server = Bun.serve({
         // Use wrapped fetch to process payment
         console.log('📞 Making payment request to:', entrypointUrl);
         
-        status.innerHTML = '<p>💳 Processing payment...</p>';
+        status.innerHTML = '<p>💳 Processing payment (gasless via facilitator)...</p>';
+        
+        console.log('🚀 Starting payment request...');
+        console.log('📋 Request details:', {
+          url: entrypointUrl,
+          method: 'POST',
+          input: {
+            channelId: '${channelId}',
+            serverId: '${serverId || ""}',
+            lookbackMinutes: ${lookbackMinutes}
+          }
+        });
+        
+        // Log before the request to track when MetaMask should prompt
+        console.log('⏳ Calling x402Fetch - MetaMask should prompt for transaction signature now...');
         
         let response;
         try {
@@ -662,9 +687,17 @@ const server = Bun.serve({
               },
             }),
           });
+          console.log('✅ Payment request completed, response received');
         } catch (paymentError) {
           console.error('❌ Payment processing error:', paymentError);
-          throw new Error('Payment failed: ' + (paymentError.message || 'Unknown error. Please check you have sufficient USDC balance and gas fees.'));
+          console.error('❌ Payment error details:', {
+            message: paymentError.message,
+            stack: paymentError.stack,
+            name: paymentError.name,
+            code: paymentError.code,
+            data: paymentError.data
+          });
+          throw new Error('Payment failed: ' + (paymentError.message || 'Unknown error. Please check the console for details.'));
         }
 
         console.log('📊 Response status:', response.status, response.statusText);
@@ -674,6 +707,15 @@ const server = Bun.serve({
         // Check for transaction hash in X-PAYMENT-RESPONSE header
         const paymentResponseHeader = response.headers.get('X-PAYMENT-RESPONSE');
         console.log('💳 X-PAYMENT-RESPONSE header:', paymentResponseHeader);
+        
+        // Also check for X-PAYMENT header which might contain transaction info
+        const paymentHeader = response.headers.get('X-PAYMENT');
+        console.log('💳 X-PAYMENT header:', paymentHeader);
+        
+        // Check all headers for payment-related info
+        const allHeaders = Array.from(response.headers.entries());
+        const paymentHeaders = allHeaders.filter(([key]) => key.toLowerCase().includes('payment'));
+        console.log('💳 All payment-related headers:', paymentHeaders);
         
         const data = await response.json();
         console.log('📦 Response data:', data);
@@ -777,6 +819,9 @@ const server = Bun.serve({
           const price = process.env.ENTRYPOINT_PRICE || "0.10";
           const currency = process.env.PAYMENT_CURRENCY || "USDC";
           
+          // Get facilitator URL from config or env
+          const facilitatorUrl = process.env.FACILITATOR_URL || "https://facilitator.daydreams.systems";
+          
           return Response.json(
             {
               x402Version: "1.0",
@@ -790,7 +835,8 @@ const server = Bun.serve({
                   maxAmountRequired: "100000", // 0.10 USDC (6 decimals = 100000 / 10^6)
                   maxTimeoutSeconds: 300,
                   network: "base",
-                  asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base (6 decimals)
+                  asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base (6 decimals, supports EIP-3009)
+                  facilitator: facilitatorUrl, // Facilitator URL for gasless transactions
                 },
               ],
             },
