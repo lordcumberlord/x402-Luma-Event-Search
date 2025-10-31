@@ -376,17 +376,25 @@ addEntrypoint({
 
     const llm = axClient.ax;
     if (!llm) {
-      const fallbackSummary = conversation
-        .split("\n")
-        .slice(0, 5)
-        .join("\n")
-        .trim();
+      const fallbackSummary = ensureGreeting(
+        conversation
+          .split("\n")
+          .slice(0, 5)
+          .join("\n")
+          .trim(),
+        lookbackMinutes,
+        rangeLabel
+      );
 
       return {
         output: {
           summary:
             fallbackSummary ||
-            `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`,
+            ensureGreeting(
+              `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`,
+              lookbackMinutes,
+              rangeLabel
+            ),
           actionables: [],
         },
         model: "axllm-fallback",
@@ -412,6 +420,8 @@ addEntrypoint({
       .replace(/\[[^\]]*\d{4}[^\]]*\]/g, "") // Any bracketed timestamps
       .replace(/x402 Summariser[^\n]*\n?/gi, "") // Remove "x402 Summariser:" prefix
       .trim();
+
+    summary = ensureGreeting(summary, lookbackMinutes, rangeLabel);
 
     return {
       output: {
@@ -573,16 +583,24 @@ export async function executeSummariseChat(input: {
 
   const llm = axClient.ax;
   if (!llm) {
-    const fallbackSummary = conversation
-      .split("\n")
-      .slice(0, 5)
-      .join("\n")
-      .trim();
+    const fallbackSummary = ensureGreeting(
+      conversation
+        .split("\n")
+        .slice(0, 5)
+        .join("\n")
+        .trim(),
+      lookbackMinutes,
+      rangeLabel
+    );
 
     return {
       summary:
         fallbackSummary ||
-        `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`,
+        ensureGreeting(
+          `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`,
+          lookbackMinutes,
+          rangeLabel
+        ),
       actionables: [],
     };
   }
@@ -623,16 +641,24 @@ export async function executeSummariseChat(input: {
   } catch (error: any) {
     console.error("[discord-summary-agent] LLM flow error:", error);
     // Fallback to simple summary if LLM fails
-    const fallbackSummary = conversation
-      .split("\n")
-      .slice(0, 5)
-      .join("\n")
-      .trim();
+    const fallbackSummary = ensureGreeting(
+      conversation
+        .split("\n")
+        .slice(0, 5)
+        .join("\n")
+        .trim(),
+      lookbackMinutes,
+      rangeLabel
+    );
 
     return {
       summary:
         fallbackSummary ||
-        `Messages retrieved (${rangeLabel}), but failed to generate AI summary: ${error.message}`,
+        ensureGreeting(
+          `Messages retrieved (${rangeLabel}), but failed to generate AI summary: ${error.message}`,
+          lookbackMinutes,
+          rangeLabel
+        ),
       actionables: [],
     };
   }
@@ -686,6 +712,60 @@ function formatConversation(messages: DiscordMessage[]): string {
       return `${author}: ${content || "(no text content)"}`;
     })
     .join("\n");
+}
+
+function ensureGreeting(
+  summary: string,
+  lookbackMinutes?: number,
+  rangeLabel?: string,
+  now: Date = new Date()
+): string {
+  const trimmed = summary.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const greetingRegex = /^(good\s+(morning|afternoon|evening|night)|hello|hi|hey|greetings)/i;
+  if (greetingRegex.test(trimmed)) {
+    return trimmed;
+  }
+
+  const greeting = timeBasedGreeting(now);
+
+  let windowPhrase: string;
+  if (typeof lookbackMinutes === "number" && lookbackMinutes > 0) {
+    windowPhrase = `the last ${lookbackMinutes} minutes`;
+  } else if (rangeLabel && rangeLabel.trim().length > 0) {
+    windowPhrase = rangeLabel.trim();
+  } else {
+    windowPhrase = "this period";
+  }
+
+  const intro = `${greeting} Here is what happened in ${windowPhrase}:`;
+
+  if (trimmed.startsWith("•") || trimmed.startsWith("-")) {
+    return `${intro}\n${trimmed}`;
+  }
+
+  return `${intro} ${trimmed}`.trim();
+}
+
+function timeBasedGreeting(now: Date): string {
+  const hour = now.getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return "Good morning!";
+  }
+
+  if (hour >= 12 && hour < 17) {
+    return "Good afternoon!";
+  }
+
+  if (hour >= 17 && hour < 22) {
+    return "Good evening!";
+  }
+
+  return "Hello!";
 }
 
 async function fetchMessagesBetween({
