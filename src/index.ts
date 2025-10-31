@@ -671,8 +671,29 @@ const server = Bun.serve({
           }
         });
         
+        // Check USDC balance before payment to verify transaction processing
+        const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // USDC on Base
+        let balanceBefore = null;
+        try {
+          // ERC-20 balanceOf(address) - function selector: 0x70a08231
+          const balanceData = await walletProvider.request({
+            method: 'eth_call',
+            params: [{
+              to: USDC_ADDRESS,
+              data: '0x70a08231' + accountAddress.slice(2).padStart(64, '0')
+            }, 'latest']
+          });
+          balanceBefore = BigInt(balanceData);
+          const balanceFormatted = Number(balanceBefore) / 1e6;
+          console.log('💰 USDC balance before payment:', balanceFormatted, 'USDC');
+        } catch (balanceError) {
+          console.warn('⚠️ Could not check USDC balance:', balanceError);
+        }
+        
         // Log before the request to track when MetaMask should prompt
-        console.log('⏳ Calling x402Fetch - MetaMask should prompt for transaction signature now...');
+        console.log('⏳ Calling x402Fetch - MetaMask should prompt for EIP-3009 signature (not a transaction)...');
+        console.log('📝 Note: x402 uses EIP-3009 permits - you\'re signing a message, not sending a transaction.');
+        console.log('📝 The facilitator will process the permit and create a transaction.');
         
         let response;
         try {
@@ -688,6 +709,37 @@ const server = Bun.serve({
             }),
           });
           console.log('✅ Payment request completed, response received');
+          
+          // Check USDC balance after payment to verify transaction processed
+          if (balanceBefore !== null) {
+            try {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s for transaction to process
+              const balanceDataAfter = await walletProvider.request({
+                method: 'eth_call',
+                params: [{
+                  to: USDC_ADDRESS,
+                  data: '0x70a08231' + accountAddress.slice(2).padStart(64, '0')
+                }, 'latest']
+              });
+              const balanceAfter = BigInt(balanceDataAfter);
+              const balanceFormattedBefore = Number(balanceBefore) / 1e6;
+              const balanceFormattedAfter = Number(balanceAfter) / 1e6;
+              const difference = balanceFormattedBefore - balanceFormattedAfter;
+              
+              console.log('💰 USDC balance after payment:', balanceFormattedAfter, 'USDC');
+              console.log('💰 Balance change:', difference >= 0 ? '-' + difference : '+' + Math.abs(difference), 'USDC');
+              
+              if (difference >= 0.09) {
+                console.log('✅ USDC balance decreased - transaction processed successfully!');
+              } else if (difference > 0) {
+                console.log('⚠️ USDC balance decreased by', difference, '- transaction may be processing');
+              } else {
+                console.warn('⚠️ USDC balance did not decrease - transaction may not have processed');
+              }
+            } catch (balanceError) {
+              console.warn('⚠️ Could not check USDC balance after payment:', balanceError);
+            }
+          }
         } catch (paymentError) {
           console.error('❌ Payment processing error:', paymentError);
           console.error('❌ Payment error details:', {
