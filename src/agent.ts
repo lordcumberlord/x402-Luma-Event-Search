@@ -376,25 +376,19 @@ addEntrypoint({
 
     const llm = axClient.ax;
     if (!llm) {
-      const fallbackSummary = ensureGreeting(
-        conversation
-          .split("\n")
-          .slice(0, 5)
-          .join("\n")
-          .trim(),
-        lookbackMinutes,
-        rangeLabel
-      );
+      const fallbackSummary = conversation
+        .split("\n")
+        .slice(0, 5)
+        .join("\n")
+        .trim();
+
+      const fallbackText =
+        fallbackSummary ||
+        `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`;
 
       return {
         output: {
-          summary:
-            fallbackSummary ||
-            ensureGreeting(
-              `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`,
-              lookbackMinutes,
-              rangeLabel
-            ),
+          summary: finalizeSummary(fallbackText, lookbackMinutes, rangeLabel),
           actionables: [],
         },
         model: "axllm-fallback",
@@ -421,7 +415,7 @@ addEntrypoint({
       .replace(/x402 Summariser[^\n]*\n?/gi, "") // Remove "x402 Summariser:" prefix
       .trim();
 
-    summary = ensureGreeting(summary, lookbackMinutes, rangeLabel);
+    summary = finalizeSummary(summary, lookbackMinutes, rangeLabel);
 
     return {
       output: {
@@ -583,24 +577,18 @@ export async function executeSummariseChat(input: {
 
   const llm = axClient.ax;
   if (!llm) {
-    const fallbackSummary = ensureGreeting(
-      conversation
-        .split("\n")
-        .slice(0, 5)
-        .join("\n")
-        .trim(),
-      lookbackMinutes,
-      rangeLabel
-    );
+    const fallbackSummary = conversation
+      .split("\n")
+      .slice(0, 5)
+      .join("\n")
+      .trim();
+
+    const fallbackText =
+      fallbackSummary ||
+      `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`;
 
     return {
-      summary:
-        fallbackSummary ||
-        ensureGreeting(
-          `Messages retrieved (${rangeLabel}), but AxFlow is not configured to generate a summary.`,
-          lookbackMinutes,
-          rangeLabel
-        ),
+      summary: finalizeSummary(fallbackText, lookbackMinutes, rangeLabel),
       actionables: [],
     };
   }
@@ -632,8 +620,10 @@ export async function executeSummariseChat(input: {
       .replace(/x402 Summariser[^\n]*\n?/gi, "") // Remove "x402 Summariser:" prefix
       .trim();
 
+    const finalSummary = finalizeSummary(summary, lookbackMinutes, rangeLabel);
+
     return {
-      summary: summary || "Summary generated successfully.",
+      summary: finalSummary || "Summary generated successfully.",
       actionables: Array.isArray(result.actionables)
         ? (result.actionables as string[])
         : [],
@@ -641,24 +631,18 @@ export async function executeSummariseChat(input: {
   } catch (error: any) {
     console.error("[discord-summary-agent] LLM flow error:", error);
     // Fallback to simple summary if LLM fails
-    const fallbackSummary = ensureGreeting(
-      conversation
-        .split("\n")
-        .slice(0, 5)
-        .join("\n")
-        .trim(),
-      lookbackMinutes,
-      rangeLabel
-    );
+    const fallbackSummary = conversation
+      .split("\n")
+      .slice(0, 5)
+      .join("\n")
+      .trim();
+
+    const fallbackText =
+      fallbackSummary ||
+      `Messages retrieved (${rangeLabel}), but failed to generate AI summary: ${error.message}`;
 
     return {
-      summary:
-        fallbackSummary ||
-        ensureGreeting(
-          `Messages retrieved (${rangeLabel}), but failed to generate AI summary: ${error.message}`,
-          lookbackMinutes,
-          rangeLabel
-        ),
+      summary: finalizeSummary(fallbackText, lookbackMinutes, rangeLabel),
       actionables: [],
     };
   }
@@ -766,6 +750,159 @@ function timeBasedGreeting(now: Date): string {
   }
 
   return "Hello!";
+}
+
+function finalizeSummary(
+  rawSummary: string,
+  lookbackMinutes?: number,
+  rangeLabel?: string
+): string {
+  const withGreeting = ensureGreeting(rawSummary, lookbackMinutes, rangeLabel);
+  return normalizeSummaryBullets(withGreeting);
+}
+
+function normalizeSummaryBullets(summary: string): string {
+  const trimmed = summary.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const lines = trimmed.split(/\n+/);
+  let introLine = lines[0].trim();
+  let bodyText = lines.slice(1).join("\n").trim();
+
+  const introColonIndex = introLine.indexOf(":");
+  if (introColonIndex !== -1) {
+    const introPrefix = introLine.slice(0, introColonIndex + 1).trim();
+    const introSuffix = introLine.slice(introColonIndex + 1).trim();
+    introLine = introPrefix;
+    if (introSuffix) {
+      bodyText = bodyText ? introSuffix + "\n" + bodyText : introSuffix;
+    }
+  }
+
+  if (!bodyText) {
+    return introLine;
+  }
+
+  const bulletSources = bodyText
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const bullets = bulletSources
+    .map(transformLineToBullet)
+    .filter(Boolean);
+
+  if (!bullets.length) {
+    return (introLine + "\n" + bodyText).trim();
+  }
+
+  return introLine + "\n" + bullets.join("\n");
+}
+
+function transformLineToBullet(line: string): string {
+  let text = line.trim();
+  if (!text) {
+    return "";
+  }
+
+  if (text.startsWith("•")) {
+    text = text.slice(1).trim();
+  } else if (text.startsWith("-")) {
+    text = text.replace(/^-+\s*/, "").trim();
+  }
+
+  if (!text) {
+    return "";
+  }
+
+  const colonMatch = text.match(/^([A-Za-z0-9_'`().\-\s]{1,60}):\s*(.+)$/);
+  let speaker: string | undefined;
+  let statement = text;
+
+  if (colonMatch) {
+    speaker = colonMatch[1].trim();
+    statement = colonMatch[2].trim();
+  }
+
+  if (!statement) {
+    return "";
+  }
+
+  const body = speaker
+    ? buildSentenceWithSpeaker(speaker, statement)
+    : buildSentence(statement);
+
+  return body ? "• " + body : "";
+}
+
+function buildSentenceWithSpeaker(speaker: string, statement: string): string {
+  const normalizedSpeaker = capitalizeWords(speaker);
+  const cleaned = statement.replace(/\s+/g, " ").trim();
+
+  if (!cleaned) {
+    return normalizedSpeaker + " shared an update.";
+  }
+
+  let clauseSource = cleaned;
+  const normalizedSpeakerLower = normalizedSpeaker.toLowerCase();
+  if (clauseSource.toLowerCase().startsWith(normalizedSpeakerLower)) {
+    clauseSource = clauseSource.slice(normalizedSpeaker.length).trim();
+    clauseSource = clauseSource.replace(/^[,:-]\s*/, "").trim();
+  }
+
+  if (!clauseSource) {
+    return normalizedSpeaker + " shared an update.";
+  }
+
+  if (/[?？]$/.test(clauseSource)) {
+    const core = clauseSource.replace(/[?？]+$/, "").trim();
+    const clause = lowercaseFirst(core);
+    return normalizedSpeaker + " asked " + clause + "?";
+  }
+
+  const clause = lowercaseFirst(clauseSource);
+  const punctuation = /[.!?]$/.test(clause) ? "" : ".";
+  return normalizedSpeaker + " " + clause + punctuation;
+}
+
+function buildSentence(statement: string): string {
+  const cleaned = statement.replace(/\s+/g, " ").trim();
+  if (!cleaned) {
+    return "";
+  }
+
+  if (/[?？]$/.test(cleaned)) {
+    const core = cleaned.replace(/[?？]+$/, "").trim();
+    return capitalizeFirst(core) + "?";
+  }
+
+  const sentence = capitalizeFirst(cleaned);
+  const punctuation = /[.!?]$/.test(sentence) ? "" : ".";
+  return sentence + punctuation;
+}
+
+function capitalizeWords(text: string): string {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => capitalizeFirst(part))
+    .join(" ");
+}
+
+function capitalizeFirst(text: string): string {
+  if (!text) {
+    return text;
+  }
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function lowercaseFirst(text: string): string {
+  if (!text) {
+    return text;
+  }
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
 async function fetchMessagesBetween({
