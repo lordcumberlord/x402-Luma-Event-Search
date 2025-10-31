@@ -322,6 +322,7 @@ After payment, your summary will appear here automatically.`;
 
 // Handle Discord callback after payment
 async function handleDiscordCallback(req: Request): Promise<Response> {
+  console.log(`[discord-callback] Handler called`);
   try {
     const body = await req.json();
     const { discord_token, result } = body;
@@ -330,17 +331,24 @@ async function handleDiscordCallback(req: Request): Promise<Response> {
       return Response.json({ error: "Missing discord_token" }, { status: 400 });
     }
 
-    const callbackData = pendingDiscordCallbacks.get(discord_token);
+    // Decode the token (it was URL-encoded when passed in the payment URL)
+    const decodedToken = decodeURIComponent(discord_token);
+    console.log(`[discord-callback] Looking up token: ${decodedToken.substring(0, 20)}...`);
+    console.log(`[discord-callback] Pending callbacks count: ${pendingDiscordCallbacks.size}`);
+    console.log(`[discord-callback] Available tokens:`, Array.from(pendingDiscordCallbacks.keys()).map(k => k.substring(0, 20) + '...'));
+    
+    const callbackData = pendingDiscordCallbacks.get(decodedToken);
     if (!callbackData) {
+      console.error(`[discord-callback] Token not found in pending callbacks. Token: ${decodedToken.substring(0, 30)}...`);
       return Response.json({ error: "Invalid or expired callback token" }, { status: 404 });
     }
 
     // Remove from pending
-    pendingDiscordCallbacks.delete(discord_token);
+    pendingDiscordCallbacks.delete(decodedToken);
 
     // Send result to Discord
     const baseUrl = process.env.DISCORD_API_BASE_URL ?? DISCORD_API_DEFAULT_BASE;
-    const followupUrl = `${baseUrl}/webhooks/${callbackData.applicationId}/${discord_token}`;
+    const followupUrl = `${baseUrl}/webhooks/${callbackData.applicationId}/${decodedToken}`;
 
     const output = result?.output || result;
     
@@ -371,7 +379,7 @@ async function handleDiscordCallback(req: Request): Promise<Response> {
     
     // Log payment verification info if available
     // x402 payments should include payment metadata in the response
-    console.log(`[payment] Payment callback received for token: ${discord_token.substring(0, 20)}...`);
+    console.log(`[payment] Payment callback received for token: ${decodedToken.substring(0, 20)}...`);
     console.log(`[payment] Result keys:`, Object.keys(result || {}));
     if (result?.payment || result?.x402Payment || result?.paymentTx) {
       const paymentInfo = result?.payment || result?.x402Payment || result?.paymentTx;
