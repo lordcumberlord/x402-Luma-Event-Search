@@ -734,6 +734,10 @@ const server = Bun.serve({
           const fullEntrypointUrl = url.origin + url.pathname + (url.search ? url.search : "");
           
           console.log(`[payment] Returning 402 Payment Required for: ${fullEntrypointUrl}`);
+          // Calculate formatted price for description
+          const price = process.env.ENTRYPOINT_PRICE || "0.10";
+          const currency = process.env.PAYMENT_CURRENCY || "USDC";
+          
           return Response.json(
             {
               x402Version: "1.0",
@@ -741,13 +745,13 @@ const server = Bun.serve({
                 {
                   scheme: "exact",
                   resource: fullEntrypointUrl,
-                  description: "Summarise Discord channel",
+                  description: `Summarise Discord channel - Pay $${price} ${currency}`,
                   mimeType: "application/json",
                   payTo: payToAddress,
-                  maxAmountRequired: "100000", // 0.10 USDC (6 decimals)
+                  maxAmountRequired: "100000", // 0.10 USDC (6 decimals = 100000 / 10^6)
                   maxTimeoutSeconds: 300,
                   network: "base",
-                  asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
+                  asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base (6 decimals)
                 },
               ],
             },
