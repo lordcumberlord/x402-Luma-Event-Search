@@ -895,21 +895,27 @@ function transformLineToBullet(
 }
 
 function filterAndRankBullets(bullets: string[]): string[] {
-  const scored = bullets.map((bullet) => ({
+  const scored = bullets.map((bullet, index) => ({
     bullet,
     score: scoreBullet(bullet),
+    index,
   }));
 
-  const retained = scored
-    .filter((item) => item.score >= 0)
-    .sort((a, b) => b.score - a.score)
-    .map((item) => item.bullet);
-
-  if (!retained.length && scored.length) {
-    return [scored.sort((a, b) => b.score - a.score)[0].bullet];
+  const retained = scored.filter((item) => item.score >= 0);
+  if (retained.length) {
+    return retained
+      .sort((a, b) => a.index - b.index)
+      .map((item) => item.bullet);
   }
 
-  return retained;
+  if (scored.length) {
+    const best = scored.reduce((prev, current) =>
+      current.score > prev.score ? current : prev
+    );
+    return [best.bullet];
+  }
+
+  return [];
 }
 
 function scoreBullet(bullet: string): number {
