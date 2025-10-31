@@ -357,7 +357,21 @@ addEntrypoint({
       };
     }
 
+    // Log first few messages to debug content extraction
+    console.log(`[discord-summary-agent] Fetched ${messages.length} messages`);
+    if (messages.length > 0) {
+      console.log(`[discord-summary-agent] First message sample:`, {
+        id: messages[0].id,
+        content: messages[0].content,
+        contentLength: messages[0].content?.length || 0,
+        hasAuthor: !!messages[0].author,
+        author: messages[0].author?.username || messages[0].author?.global_name,
+      });
+    }
+
     const conversation = formatConversation(messages);
+    console.log(`[discord-summary-agent] Formatted conversation preview (first 500 chars):`, conversation.substring(0, 500));
+    
     const timeWindow = `${start.toISOString()} → ${end.toISOString()} (${rangeLabel})`;
 
     const llm = axClient.ax;
@@ -717,9 +731,18 @@ async function fetchMessagesBetween({
       );
     }
 
-    const batch = (await response.json()) as DiscordMessage[];
+    const batch = (await response.json()) as any[];
     if (!Array.isArray(batch) || batch.length === 0) {
       break;
+    }
+
+    // Log first message structure to debug
+    if (page === 1 && batch.length > 0) {
+      console.log(`[discord-summary-agent] Sample raw message from Discord API:`, {
+        hasContent: 'content' in batch[0],
+        contentPreview: batch[0]?.content?.substring(0, 100),
+        keys: Object.keys(batch[0] || {}),
+      });
     }
 
     const sortedBatch = [...batch].sort(
