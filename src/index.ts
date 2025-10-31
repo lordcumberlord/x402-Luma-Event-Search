@@ -551,7 +551,8 @@ const server = Bun.serve({
         }
         
         // Wrap fetch with payment handling (pass wallet provider directly, not a signer)
-        const x402Fetch = wrapFetchWithPayment(fetch, walletProvider, DEFAULT_PRICE_USDC);
+        // maxValue: 0.10 USDC = 100000 (6 decimals)
+        const x402Fetch = wrapFetchWithPayment(fetch, walletProvider, BigInt(100000));
         
         const entrypointUrl = '${entrypointUrl}';
         console.log('📞 Calling entrypoint:', entrypointUrl);
