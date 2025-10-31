@@ -584,7 +584,7 @@ const server = Bun.serve({
                     params: [{ chainId: BASE_CHAIN_ID_HEX }],
                   });
                   console.log('✅ Successfully switched to Base network');
-                  ready.innerHTML = '<p>✅ Switched to Base network</p>';
+                  status.innerHTML = '<p>✅ Switched to Base network</p>';
                 } catch (switchError: any) {
                   // If the error is 4902, the chain is not added to MetaMask
                   if (switchError.code === 4902) {
