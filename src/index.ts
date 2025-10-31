@@ -484,15 +484,57 @@ const server = Bun.serve({
     <div id="status" style="margin-top: 20px;"></div>
   </div>
   <script type="module">
-    import { x402Fetch } from 'https://cdn.jsdelivr.net/npm/x402-fetch@0.7.0/+esm';
+    let x402Fetch;
+    
+    // Try to load x402-fetch from CDN with error handling
+    (async () => {
+      try {
+        const module = await import('https://cdn.jsdelivr.net/npm/x402-fetch@0.7.0/+esm');
+        x402Fetch = module.x402Fetch || module.default?.x402Fetch || module.default;
+        
+        if (!x402Fetch) {
+          console.warn('x402Fetch not found, trying alternative CDN...');
+          const module2 = await import('https://unpkg.com/x402-fetch@0.7.0/dist/index.esm.js');
+          x402Fetch = module2.x402Fetch || module2.default?.x402Fetch || module2.default;
+        }
+        
+        if (x402Fetch) {
+          console.log('✅ x402-fetch loaded successfully');
+        } else {
+          console.error('❌ Failed to load x402-fetch from any CDN');
+        }
+      } catch (importError) {
+        console.error('❌ Failed to import x402-fetch:', importError);
+        // Try alternative CDN
+        try {
+          const module2 = await import('https://unpkg.com/x402-fetch@0.7.0/dist/index.esm.js');
+          x402Fetch = module2.x402Fetch || module2.default?.x402Fetch || module2.default;
+          if (x402Fetch) {
+            console.log('✅ x402-fetch loaded from alternative CDN');
+          }
+        } catch (importError2) {
+          console.error('❌ Failed to import x402-fetch from unpkg:', importError2);
+        }
+      }
+    })();
     
     async function pay() {
       const status = document.getElementById('status');
-      status.innerHTML = '<p>Connecting wallet...</p>';
+      
+      if (!x402Fetch) {
+        status.innerHTML = '<p style="color: red;">⚠️ Error: Could not load x402 payment library.</p><p style="font-size: 12px; color: #666;">Please check your browser console for details. Make sure you have an x402 wallet browser extension installed.</p>';
+        console.error('❌ x402Fetch is not available');
+        return;
+      }
+      
+      status.innerHTML = '<p>🔌 Connecting wallet...</p>';
       
       try {
+        const entrypointUrl = '${entrypointUrl}';
+        console.log('📞 Calling entrypoint:', entrypointUrl);
+        
         // Use x402-fetch to actually process payment
-        const response = await x402Fetch('${entrypointUrl}', {
+        const response = await x402Fetch(entrypointUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -505,11 +547,12 @@ const server = Bun.serve({
         });
 
         const data = await response.json();
+        console.log('📦 Response data:', data);
         
         if (response.ok) {
           // Log payment info if available
           if (data.payment) {
-            console.log('Payment details:', {
+            console.log('💰 Payment details:', {
               txHash: data.payment.txHash,
               from: data.payment.from,
               amount: data.payment.amount,
@@ -529,21 +572,30 @@ const server = Bun.serve({
               discord_token: '${discordCallback}',
               result: data,
             }),
-          }).catch(err => console.error('Callback error:', err));` : ''}
+          }).catch(err => {
+            console.error('❌ Callback error:', err);
+            status.innerHTML += '<p style="color: orange;">⚠️ Payment successful but failed to send to Discord. Please contact support.</p>';
+          });` : ''}
         } else if (response.status === 402) {
-          status.innerHTML = '<p style="color: orange;">Payment required. Please connect your x402 wallet and try again.</p>';
+          status.innerHTML = '<p style="color: orange;">💳 Payment required. Please connect your x402 wallet and approve the transaction.</p>';
         } else {
-          status.innerHTML = '<p style="color: red;">Error: ' + (data.error?.message || JSON.stringify(data)) + '</p>';
+          status.innerHTML = '<p style="color: red;">❌ Error: ' + (data.error?.message || JSON.stringify(data)) + '</p>';
         }
       } catch (error) {
-        console.error('Payment error:', error);
-        status.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
-        if (error.message.includes('wallet') || error.message.includes('user rejected')) {
-          status.innerHTML += '<p style="font-size: 12px; color: #666;">Make sure you have an x402 wallet installed and approved the transaction.</p>';
+        console.error('❌ Payment error:', error);
+        status.innerHTML = '<p style="color: red;">❌ Error: ' + error.message + '</p>';
+        if (error.message.includes('wallet') || error.message.includes('user rejected') || error.message.includes('User rejected')) {
+          status.innerHTML += '<p style="font-size: 12px; color: #666;">Make sure you have an x402 wallet browser extension installed and approved the transaction.</p>';
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          status.innerHTML += '<p style="font-size: 12px; color: #666;">Network error. Please check your connection and try again.</p>';
+        } else {
+          status.innerHTML += '<p style="font-size: 12px; color: #666;">Check browser console (F12) for more details.</p>';
         }
       }
     }
+    
     window.pay = pay;
+    console.log('✅ Payment function loaded');
   </script>
 </body>
 </html>`, {
