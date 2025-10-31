@@ -692,7 +692,7 @@ const server = Bun.serve({
         
         // Log before the request to track when MetaMask should prompt
         console.log('⏳ Calling x402Fetch - MetaMask should prompt for EIP-3009 signature (not a transaction)...');
-        console.log('📝 Note: x402 uses EIP-3009 permits - you\'re signing a message, not sending a transaction.');
+        console.log('📝 Note: x402 uses EIP-3009 permits - you are signing a message, not sending a transaction.');
         console.log('📝 The facilitator will process the permit and create a transaction.');
         
         let response;
