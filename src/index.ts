@@ -480,6 +480,54 @@ const server = Bun.serve({
       return handleDiscordCallback(req);
     }
 
+    if (url.pathname === "/assets/x402-card.svg" && req.method === "GET") {
+      const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#0b1120"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="20%" r="70%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#61f0ff"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="30" stdDeviation="40" flood-color="#0b1120" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)" opacity="0.45"/>
+  <g transform="translate(180 140)" filter="url(#shadow)">
+    <path d="M154 0c90 0 164 75 164 168v40c0 93-74 168-164 168-23 0-44-4-64-12l-78 62c-12 9-28-5-20-18l41-69c-28-29-43-67-43-111v-60C-74 75 0 0 90 0h64z" fill="url(#logoGradient)"/>
+    <rect x="66" y="108" width="176" height="116" rx="58" fill="#0f172a"/>
+    <circle cx="116" cy="166" r="32" fill="#8be3ff"/>
+    <circle cx="192" cy="166" r="32" fill="#8be3ff"/>
+    <g fill="#7ff8ff">
+      <circle cx="88" cy="36" r="22"/>
+      <circle cx="220" cy="36" r="22"/>
+      <rect x="150" y="10" width="8" height="52" rx="4"/>
+      <rect x="150" y="10" width="8" height="52" rx="4" transform="rotate(12 154 36)"/>
+    </g>
+  </g>
+  <g transform="translate(420 215)">
+    <text x="0" y="0" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="700" fill="#f8fafc">x402 Summariser Bot</text>
+    <text x="0" y="96" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="34" fill="rgba(226,232,240,0.88)">Summarise your Discord &amp; Telegram chats for $0.10 via x402.</text>
+  </g>
+</svg>`;
+      return new Response(svg, {
+        headers: {
+          "Content-Type": "image/svg+xml; charset=utf-8",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    }
+
     // Payment page - handles GET requests and shows payment UI
     if (url.pathname === "/pay" && req.method === "GET") {
       const channelId = url.searchParams.get("channelId");
@@ -872,12 +920,27 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/download" && req.method === "GET") {
+      const origin = url.origin;
+      const ogImageUrl = `${origin}/assets/x402-card.svg`;
       return new Response(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>x402 Summariser Bot</title>
+  <meta name="description" content="Summarise your Discord & Telegram chats for $0.10 via x402.">
+  <meta property="og:title" content="x402 Summariser Bot">
+  <meta property="og:description" content="Summarise your Discord & Telegram chats for $0.10 via x402.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${origin}/download">
+  <meta property="og:image" content="${ogImageUrl}">
+  <meta property="og:image:type" content="image/svg+xml">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="x402 Summariser Bot">
+  <meta name="twitter:description" content="Summarise your Discord & Telegram chats for $0.10 via x402.">
+  <meta name="twitter:image" content="${ogImageUrl}">
   <style>
     :root {
       color-scheme: light dark;
@@ -885,14 +948,40 @@ const server = Bun.serve({
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f172a;
+      background: linear-gradient(135deg, #0f172a, #111c38 40%, #010409) fixed;
       color: #e2e8f0;
       display: flex;
       justify-content: center;
       padding: 48px 16px 96px;
     }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.16), transparent 55%),
+                  radial-gradient(circle at 80% 10%, rgba(14, 165, 233, 0.12), transparent 50%),
+                  radial-gradient(circle at 40% 80%, rgba(56, 189, 248, 0.18), transparent 55%);
+      pointer-events: none;
+      z-index: -2;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95));
+      z-index: -1;
+    }
     .page {
       width: min(840px, 100%);
+      position: relative;
+    }
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: -40px;
+      background: radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.45), transparent 55%);
+      filter: blur(120px);
+      z-index: -1;
     }
     header {
       margin-bottom: 48px;
@@ -975,13 +1064,13 @@ const server = Bun.serve({
       box-shadow: 0 8px 16px rgba(37, 99, 235, 0.5);
     }
     section {
-      background: rgba(15, 23, 42, 0.75);
+      background: linear-gradient(145deg, rgba(17, 24, 39, 0.78), rgba(15, 23, 42, 0.94));
       border: 1px solid rgba(148, 163, 184, 0.2);
       border-radius: 16px;
       padding: 32px;
       margin-bottom: 32px;
       backdrop-filter: blur(14px);
-      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.45);
+      box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
     }
     section h2 {
       margin-top: 0;
@@ -999,8 +1088,8 @@ const server = Bun.serve({
     .steps li {
       padding: 20px 24px;
       border-radius: 12px;
-      background: rgba(30, 41, 59, 0.75);
-      border: 1px solid rgba(148, 163, 184, 0.15);
+      background: linear-gradient(160deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.88));
+      border: 1px solid rgba(148, 163, 184, 0.18);
       position: relative;
       line-height: 1.5;
     }
@@ -1029,7 +1118,7 @@ const server = Bun.serve({
     .action-card {
       padding: 28px;
       border-radius: 14px;
-      background: rgba(30, 41, 59, 0.82);
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.78));
       border: 1px solid rgba(148, 163, 184, 0.22);
       display: flex;
       flex-direction: column;
@@ -1117,7 +1206,7 @@ const server = Bun.serve({
       </div>
     </section>
 
-    <footer>Need help or want early access elsewhere? Reach out to the x402 team.</footer>
+    <footer>Need help or want early access elsewhere? Contact @lordcumberlord on X.</footer>
   </main>
 </body>
 </html>`, {
