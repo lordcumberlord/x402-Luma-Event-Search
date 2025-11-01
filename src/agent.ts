@@ -246,15 +246,29 @@ Assignment cue: phrases like "X assigned Y to …", "Y will …", "let's have @Y
 
 Deadline cue: explicit time phrases ("by Monday", "tomorrow", dates/times).
 
-Rendering rule (mandatory):
+### ACTION ITEMS
 
-After writing all Highlights, check if any messages include an @mention followed by an action verb or due time.
+After finishing the last highlight bullet, STOP the bullet list.
 
-If yes, create a new section beginning with a blank line and the header **Action Items:**, then list each task there.
+Then, if any tasks, assignments, or follow-ups were detected:
 
-Do not include those task lines in the Highlights section.
+1. Add one blank line.
+
+2. On a new line, write exactly:
+
+   **Action Items:**
+
+3. On the following lines, write each task as:
+
+   • @User to <action> by <date or timeframe>.
+
+   • @User to <action> as discussed.
 
 This header must always appear if any actionable items exist.
+
+Never continue the same bullet list; the Action Items block must be visually separate.
+
+Never include those task lines in the Highlights section.
 
 Keep context in Highlights when it adds value (e.g., who assigned it, why it came up).
 
