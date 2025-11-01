@@ -1331,11 +1331,18 @@ const server = Bun.serve({
 
     // Agent app routes - intercept entrypoint responses for Discord callbacks
     if (url.pathname.includes("/entrypoints/") && url.pathname.includes("/invoke")) {
-      const isSummariseEntrypoint =
-        url.pathname.includes("summarise%20chat") || url.pathname.includes("summarise chat");
-      if (isSummariseEntrypoint) {
+      const isSummariseEndpoint =
+        url.pathname.includes("summarise%20chat") ||
+        url.pathname.includes("summarise chat") ||
+        url.pathname.includes("summarise%20telegram%20chat") ||
+        url.pathname.includes("summarise telegram chat");
+      if (isSummariseEndpoint) {
         const hasPaymentHeader = req.headers.get("X-PAYMENT");
         console.log(`[payment] Entrypoint called: ${url.pathname}`);
+
+        const sourceLabel = url.pathname.includes("telegram")
+          ? "Summarise Telegram chat"
+          : "Summarise Discord channel";
 
         const payToAddress =
           process.env.PAY_TO || "0x1b0006DbFbF4d8Ec99cd7C40C43566EaA7D95feD";
@@ -1352,7 +1359,7 @@ const server = Bun.serve({
         const paymentRequirement = {
           scheme: "exact" as const,
           resource: fullEntrypointUrl,
-          description: `Summarise Discord channel - Pay $${price} ${currency}`,
+          description: `${sourceLabel} - Pay $${price} ${currency}`,
           mimeType: "application/json",
           payTo: payToAddress,
           maxAmountRequired: "100000",
