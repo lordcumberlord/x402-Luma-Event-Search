@@ -1118,9 +1118,22 @@ function normalizeSummaryBullets(
     return (introLine + "\n" + bodyText).trim();
   }
 
-  const markdownBullets = filteredBullets.map((line) => `- ${line}`);
+  const expandedBullets: string[] = [];
+  for (const bullet of filteredBullets) {
+    if (bullet.includes(" • ")) {
+      const parts = bullet
+        .split(/\s*•\s*/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      expandedBullets.push(...parts);
+    } else {
+      expandedBullets.push(bullet);
+    }
+  }
 
-  return introLine + "\n" + markdownBullets.join("\n");
+  const lines = expandedBullets.map((line) => (line.startsWith("•") ? line : "• " + line));
+
+  return introLine + "\n" + lines.join("\n");
 }
 
 function transformLineToBullet(
