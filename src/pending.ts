@@ -3,6 +3,7 @@ export type DiscordCallbackData = {
   channelId: string;
   guildId: string | null;
   lookbackMinutes: number;
+  paymentMessageId?: string;
   expiresAt: number;
 };
 

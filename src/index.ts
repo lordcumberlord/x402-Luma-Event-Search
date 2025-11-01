@@ -226,16 +226,6 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
           }
 
           if (requiresPayment) {
-            // Store Discord webhook info for callback
-            pendingDiscordCallbacks.set(interaction.token, {
-              applicationId: interaction.application_id,
-              channelId: channel_id,
-              guildId: guild_id,
-              lookbackMinutes,
-              expiresAt: Date.now() + PAYMENT_CALLBACK_EXPIRY_MS,
-            });
-
-            // Send payment instructions to Discord user
             const callbackParam = encodeURIComponent(interaction.token);
             const paymentUrl = `${agentBaseUrl}/pay?channelId=${channel_id}&serverId=${guild_id || ""}&lookbackMinutes=${lookbackMinutes}&discord_callback=${callbackParam}`;
             
@@ -251,12 +241,37 @@ To summarise this channel, please pay **$${price} ${currency}** via x402.
 
 After payment, your summary will appear here automatically.`;
 
-            await fetch(followupUrl, {
+            let paymentMessageId: string | undefined;
+            const followupResponse = await fetch(followupUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 content: paymentMessage,
               }),
+            });
+
+            if (!followupResponse.ok) {
+              const errorText = await followupResponse.text();
+              console.error(`[discord] Failed to send follow-up: ${followupResponse.status} ${errorText}`);
+              return;
+            }
+
+            try {
+              const followupData = await followupResponse.json();
+              if (followupData && followupData.id) {
+                paymentMessageId = String(followupData.id);
+              }
+            } catch (jsonError) {
+              console.warn("[discord] Unable to parse follow-up response JSON", jsonError);
+            }
+
+            pendingDiscordCallbacks.set(interaction.token, {
+              applicationId: interaction.application_id,
+              channelId: channel_id,
+              guildId: guild_id,
+              lookbackMinutes,
+              paymentMessageId,
+              expiresAt: Date.now() + PAYMENT_CALLBACK_EXPIRY_MS,
             });
             return;
           }
@@ -415,6 +430,22 @@ async function handleDiscordCallback(req: Request): Promise<Response> {
       const errorText = await followupResponse.text();
       console.error(`[discord] Failed to send callback result: ${followupResponse.status} ${errorText}`);
       return Response.json({ error: "Failed to send result to Discord" }, { status: 500 });
+    }
+
+    if (callbackData.paymentMessageId) {
+      const editUrl = `${followupUrl}/messages/${callbackData.paymentMessageId}`;
+      const editResponse = await fetch(editUrl, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: "✅ Payment received. Summary posted below.",
+        }),
+      });
+
+      if (!editResponse.ok) {
+        const editError = await editResponse.text();
+        console.warn(`[discord] Failed to edit payment message: ${editResponse.status} ${editError}`);
+      }
     }
 
     console.log(`[discord] Successfully sent callback result to Discord`);
