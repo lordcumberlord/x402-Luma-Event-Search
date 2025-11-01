@@ -554,17 +554,21 @@ addEntrypoint({
         : 60;
 
     const messages = getTelegramMessagesWithin(chatNumeric, lookbackMinutes);
-    if (!messages.length) {
+    const meaningfulMessages = messages.filter((msg) => {
+      const trimmed = msg.text?.trim();
+      return trimmed && !trimmed.startsWith("/");
+    });
+    if (meaningfulMessages.length < 3) {
       return {
         output: {
-          summary: `No Telegram messages found in chat ${chatIdRaw} for the last ${lookbackMinutes} minutes.`,
+          summary: `Not enough recent Telegram conversation to summarise yet. Try again after a few more messages.`,
           actionables: [],
         },
-        model: "telegram-empty",
+        model: "telegram-insufficient",
       };
     }
 
-    const sortedMessages = [...messages].sort(
+    const sortedMessages = [...meaningfulMessages].sort(
       (a, b) => a.timestampMs - b.timestampMs
     );
 
