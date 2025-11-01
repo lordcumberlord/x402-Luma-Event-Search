@@ -1,102 +1,106 @@
-import { Bot, Context, session, SessionFlavor, InlineKeyboard } from "grammy";
-import { validateLookback, MAX_LOOKBACK_MINUTES } from "./lookback";
+import { Bot, InlineKeyboard } from "grammy";
+import { validateLookback } from "./lookback";
 import { PAYMENT_CALLBACK_EXPIRY_MS } from "./constants";
 import { pendingTelegramCallbacks } from "./pending";
+import { addTelegramMessage } from "./telegramStore";
 
-type MyContext = Context & SessionFlavor<SessionData>;
+const DEFAULT_LOOKBACK_MINUTES = 60;
 
-type SessionData = {
-  mode?: "awaiting_lookback";
-  pendingLookback?: number;
-};
-
-function summarisePrompt() {
-  return (
-    "Send me how many minutes you want summarised, like 60 or 240. " +
-    `Maximum is ${MAX_LOOKBACK_MINUTES} minutes.`
-  );
-}
-
-function payUrl(baseUrl: string, params: Record<string, string | number | undefined>) {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null) continue;
-    search.set(key, String(value));
+function extractLookback(text: string | undefined) {
+  if (!text) return DEFAULT_LOOKBACK_MINUTES;
+  const parts = text.trim().split(/\s+/);
+  if (parts.length < 2) return DEFAULT_LOOKBACK_MINUTES;
+  const candidate = parts[1];
+  const result = validateLookback(candidate);
+  if ("error" in result) {
+    return result;
   }
-  return `${baseUrl}/pay?${search.toString()}`;
+  return result.minutes;
 }
 
 export function createTelegramBot(options: {
   token: string;
   baseUrl: string;
 }) {
-  const bot = new Bot<MyContext>(options.token);
+  const bot = new Bot(options.token);
 
   bot.catch((err) => {
     console.error("[telegram] polling error", err.error ?? err);
   });
 
-  bot.use(
-    session({
-      initial(): SessionData {
-        return {};
-      },
-    })
-  );
+  bot.on("message", async (ctx, next) => {
+    const msg = ctx.message;
+    if (!msg) {
+      return next();
+    }
+    const chatId = msg.chat?.id;
+    const text = "text" in msg ? msg.text ?? "" : "";
+    if (chatId && text.trim().length > 0) {
+      addTelegramMessage(chatId, {
+        messageId: msg.message_id,
+        text,
+        timestampMs: (msg.date ?? Math.floor(Date.now() / 1000)) * 1000,
+        authorId: ctx.from?.id,
+        authorUsername: ctx.from?.username ?? null,
+        authorDisplay: ctx.from?.first_name
+          ? `${ctx.from.first_name}${ctx.from.last_name ? " " + ctx.from.last_name : ""}`
+          : ctx.from?.username ?? null,
+        replyToMessageId:
+          msg.reply_to_message && "message_id" in msg.reply_to_message
+            ? msg.reply_to_message.message_id
+            : undefined,
+      });
+    }
+    return next();
+  });
 
   bot.command("start", async (ctx) => {
     await ctx.reply(
-      "Hey! I'm the x402 Summariser Bot for Telegram. " +
-        "Use /summarise to get a recap of this chat."
+      "Hey! I'm the x402 Summariser Bot. Use /summarise <minutes> to get a recap."
     );
   });
 
   bot.command("summarise", async (ctx) => {
-    ctx.session.mode = "awaiting_lookback";
-    await ctx.reply(summarisePrompt());
-  });
+    const lookbackResult = extractLookback(ctx.message?.text);
 
-  bot.on("message:text", async (ctx) => {
-    if (ctx.session.mode !== "awaiting_lookback") {
+    if (typeof lookbackResult === "object" && "error" in lookbackResult) {
+      await ctx.reply(
+        `❌ ${lookbackResult.error}\n\nUsage: /summarise 60`
+      );
       return;
     }
 
-    const lookbackValidation = validateLookback(ctx.message.text);
-    if ("error" in lookbackValidation) {
-      await ctx.reply(`❌ ${lookbackValidation.error}\n\n${summarisePrompt()}`);
+    const lookbackMinutes = lookbackResult;
+    const chatId = ctx.chat?.id;
+
+    if (!chatId) {
+      await ctx.reply("❌ Could not determine chat id.");
       return;
     }
 
-    const chat = ctx.chat;
-    const message = ctx.message;
-    const lookbackMinutes = lookbackValidation.minutes;
+    const token = `${chatId}:${Date.now()}:${crypto.randomUUID()}`;
 
-    ctx.session.mode = undefined;
-
-    const token = `${chat.id}:${message.message_id}:${Date.now()}:${crypto.randomUUID()}`;
     pendingTelegramCallbacks.set(token, {
-      chatId: chat.id,
-      threadId: "message_thread_id" in message ? message.message_thread_id : undefined,
-      messageId: message.message_id,
-      username: ctx.from?.username,
+      chatId,
       lookbackMinutes,
       expiresAt: Date.now() + PAYMENT_CALLBACK_EXPIRY_MS,
     });
 
     const callbackParam = encodeURIComponent(token);
-    const url = payUrl(options.baseUrl, {
-      source: "telegram",
-      telegram_callback: callbackParam,
-      chatId: chat.id,
-      lookbackMinutes,
-    });
+    const url = new URL("/pay", options.baseUrl);
+    url.searchParams.set("source", "telegram");
+    url.searchParams.set("telegram_callback", callbackParam);
+    url.searchParams.set("chatId", String(chatId));
+    url.searchParams.set("lookbackMinutes", String(lookbackMinutes));
 
-    const keyboard = new InlineKeyboard().url("Pay $0.10 via x402", url);
+    const keyboard = new InlineKeyboard().url(
+      "Pay $0.10 via x402",
+      url.toString()
+    );
 
     await ctx.reply(
       `💳 *Payment Required*\n\n` +
-        `We’ll summarise the last ${lookbackMinutes} minutes of this chat.\n\n` +
-        `Tap the button below to pay $0.10 via x402. Once payment clears, the summary will appear here automatically.`,
+        `We'll summarise the last ${lookbackMinutes} minutes of this chat.`,
       {
         parse_mode: "Markdown",
         reply_markup: keyboard,
