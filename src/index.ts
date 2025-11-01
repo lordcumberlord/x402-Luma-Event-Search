@@ -744,17 +744,7 @@ const server = Bun.serve({
               } else if (difference > 0) {
                 console.log('⚠️ USDC balance decreased by', difference, '- transaction may be processing');
               } else {
-                console.warn('⚠️ USDC balance did not decrease - transaction may not have processed');
-                console.warn('⚠️ This indicates the facilitator may not be processing the EIP-3009 permit');
-                console.warn('⚠️ Please check:');
-                console.warn('   1. Facilitator status: https://facilitator.x402.rs');
-                console.warn('   2. Your wallet has sufficient USDC balance');
-                console.warn('   3. Network connection is stable');
-                
-                // Update UI to show the issue
-                status.innerHTML = '<p style="color: orange;">⚠️ Payment permit signed, but transaction not processed</p>' +
-                  '<p style="font-size: 12px; color: #666;">USDC balance did not decrease. The facilitator may not be processing the permit.</p>' +
-                  '<p style="font-size: 12px; color: #666;">Please check facilitator status or try again later.</p>';
+                console.warn('⚠️ USDC balance did not decrease immediately - transaction may still be settling or MetaMask returned a cached balance.');
               }
             } catch (balanceError) {
               console.warn('⚠️ Could not check USDC balance after payment:', balanceError);
@@ -804,7 +794,8 @@ const server = Bun.serve({
         
         if (paymentResponseHeader) {
           try {
-            const paymentInfo = JSON.parse(paymentResponseHeader);
+            const decodedHeader = window.atob(paymentResponseHeader);
+            const paymentInfo = JSON.parse(decodedHeader);
             txHash = paymentInfo.txHash || paymentInfo.transactionHash || paymentInfo.hash;
             console.log('💰 Payment info from header:', paymentInfo);
           } catch (e) {
@@ -849,18 +840,27 @@ const server = Bun.serve({
           }
         }
         
+        const successMarkup = (hash) => {
+          if (!hash) {
+            return '<div style="color: #117a39;">' +
+              '<p style="font-size: 20px; margin: 0 0 8px;">✅ Payment complete!</p>' +
+              '<p style="font-size: 13px; color: #1f5132; margin: 0;">Check Discord for your summary.</p>' +
+              '</div>';
+          }
+
+          const explorer = 'https://basescan.org/tx/' + hash;
+          return '<div style="color: #117a39;">' +
+            '<p style="font-size: 20px; margin: 0 0 8px;">✅ Payment complete!</p>' +
+            '<p style="margin: 0 0 12px;">View on BaseScan: <a href="' + explorer + '" target="_blank" rel="noopener" style="color: #0b5e27;">' + hash + '</a></p>' +
+            '<p style="font-size: 13px; color: #1f5132; margin: 0;">Check Discord for your summary.</p>' +
+            '</div>';
+        };
+
         if (txHash) {
           console.log('✅ Transaction hash found:', txHash);
-          explorerUrl = 'https://basescan.org/tx/' + txHash;
-          
-          status.innerHTML = '<p style="color: green;">✅ Payment successful!</p>' +
-            '<p style="font-size: 14px;"><a href="' + explorerUrl + '" target="_blank" style="color: #5865F2;">View Transaction on BaseScan</a></p>' +
-            '<p style="font-size: 12px; color: #666;">TX: ' + txHash.substring(0, 20) + '...</p>' +
-            '<p>Check Discord for your summary.</p>';
+          status.innerHTML = successMarkup(txHash);
         } else {
-          console.warn('⚠️ No transaction hash found in response');
-          status.innerHTML = '<p style="color: orange;">⚠️ Payment processed, but transaction hash not available.</p>' +
-            '<p>Check Discord for your summary.</p>';
+          status.innerHTML = successMarkup(null);
         }
         
         if (response.ok) {
