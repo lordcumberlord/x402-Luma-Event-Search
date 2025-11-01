@@ -80,12 +80,6 @@ export function createTelegramBot(options: {
 
     const token = `${chatId}:${Date.now()}:${crypto.randomUUID()}`;
 
-    pendingTelegramCallbacks.set(token, {
-      chatId,
-      lookbackMinutes,
-      expiresAt: Date.now() + PAYMENT_CALLBACK_EXPIRY_MS,
-    });
-
     const callbackParam = encodeURIComponent(token);
     const url = new URL("/pay", options.baseUrl);
     url.searchParams.set("source", "telegram");
@@ -98,7 +92,7 @@ export function createTelegramBot(options: {
       url.toString()
     );
 
-    await ctx.reply(
+    const paymentMessage = await ctx.reply(
       `💳 *Payment Required*\n\n` +
         `We'll summarise the last ${lookbackMinutes} minutes of this chat.`,
       {
@@ -106,6 +100,16 @@ export function createTelegramBot(options: {
         reply_markup: keyboard,
       }
     );
+
+    pendingTelegramCallbacks.set(token, {
+      chatId,
+      threadId: "message_thread_id" in ctx.message ? ctx.message.message_thread_id : undefined,
+      messageId: ctx.message?.message_id,
+      username: ctx.from?.username,
+      lookbackMinutes,
+      paymentMessageId: paymentMessage.message_id,
+      expiresAt: Date.now() + PAYMENT_CALLBACK_EXPIRY_MS,
+    });
   });
 
   return bot;

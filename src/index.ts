@@ -516,6 +516,23 @@ async function handleTelegramCallback(req: Request): Promise<Response> {
       );
     }
 
+    if (callbackData.paymentMessageId) {
+      const deleteUrl = `https://api.telegram.org/bot${botToken}/deleteMessage`;
+      const deleteResponse = await fetch(deleteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: callbackData.chatId,
+          message_id: callbackData.paymentMessageId,
+        }),
+      });
+
+      if (!deleteResponse.ok) {
+        const deleteError = await deleteResponse.text();
+        console.warn(`[telegram] Failed to delete payment message: ${deleteResponse.status} ${deleteError}`);
+      }
+    }
+
     console.log(`[telegram] Successfully sent callback result to chat ${callbackData.chatId}`);
     return Response.json({ success: true });
   } catch (error: any) {

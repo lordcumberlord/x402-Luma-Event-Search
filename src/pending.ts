@@ -11,6 +11,7 @@ export type TelegramCallbackData = {
   chatId: number;
   threadId?: number | null;
   messageId?: number | null;
+  paymentMessageId?: number;
   username?: string | null;
   lookbackMinutes: number;
   expiresAt: number;
