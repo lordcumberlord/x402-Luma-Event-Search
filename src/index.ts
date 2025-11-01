@@ -388,7 +388,7 @@ async function handleDiscordCallback(req: Request): Promise<Response> {
       .trim();
     
     if (!summary) {
-      summary = "Quiet hour — no notable updates or chatter.";
+      summary = "No material updates or chatter in this window.";
     }
     
     const content = `✅ Payment Confirmed\n\n${summary}`.trim();
@@ -461,7 +461,7 @@ async function handleTelegramCallback(req: Request): Promise<Response> {
     const output = result?.output || result;
     let summary = (output?.summary || "").trim();
     if (!summary) {
-      summary = "Quiet hour — no notable updates or chatter.";
+      summary = "No material updates or chatter in this window.";
     }
 
     const messageText = `✅ Payment Confirmed\n\n${summary}`.trim();

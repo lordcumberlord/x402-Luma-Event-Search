@@ -197,7 +197,7 @@ Output Requirements
 • Bold decisions, tasks, owners, and dates.
 • Redact sensitive details; paraphrase long quotes.
 • Prioritize decisions → tasks → humor → tone → silence.
-• Anti-brutal safeguard: never output "Quiet hour" when any message within the window has length ≥ 60 characters, or contains any emoji, or has ≥1 reply. Instead, fall back to Social Mode with a single highlight if needed.
+• Anti-brutal safeguard: never output a “no updates” message when any message within the window has length ≥ 60 characters, contains any emoji, or has ≥1 reply. Instead, fall back to Social Mode with a single highlight if needed.
 
 Informational Mode Output
 • Group by topic; each topic gets 1–3 bullets covering decisions, tasks (with owners/dates), and key results.
@@ -211,13 +211,13 @@ Social Mode Output
 • End with the mood line \`_Mood: <descriptor>_\` (e.g., lighthearted and friendly).
 
 Quiet Mode Output
-• Only when conditions above hold; respond with \`_Quiet hour — no notable updates or chatter._\`
+• Only when conditions above hold; respond with \`_No material updates or chatter in this window._\`
 
 General Guidelines
 • Stay within max_chars.
 • Do not wrap the entire output in code fences.
 • Keep tone positive/neutral; no sarcasm.
-• Never emit "Quiet hour" when the guardrail conditions are violated.
+• Never emit a “no updates” message when the guardrail conditions are violated.
 `;
 
 const structuredSummarizerSignature =
@@ -668,7 +668,7 @@ addEntrypoint({
       return trimmed && !trimmed.startsWith("/");
     });
     if (meaningfulMessages.length < 3) {
-      if (shouldForceSocialTelegram(meaningfulMessages)) {
+      if (meaningfulMessages.length > 0) {
         return {
           output: {
             summary: buildSocialFallbackSummaryFromTelegram(meaningfulMessages),
@@ -679,7 +679,7 @@ addEntrypoint({
       }
       return {
         output: {
-          summary: `Quiet hour — no notable updates or chatter.`,
+          summary: `No material updates or chatter in this window.`,
           actionables: [],
         },
         model: "telegram-insufficient",
@@ -700,7 +700,7 @@ addEntrypoint({
     if (!llm) {
       return {
         output: {
-          summary: `Quiet hour — no notable updates or chatter.`,
+          summary: buildSocialFallbackSummaryFromTelegram(meaningfulMessages),
           actionables: [],
         },
         model: "telegram-fallback",
@@ -717,25 +717,16 @@ addEntrypoint({
 
       const summary = (result.summary ?? "").trim();
       let finalSummary = summary;
-      if (/quiet hour/i.test(finalSummary) && shouldForceSocialTelegram(meaningfulMessages)) {
+      if (/quiet hour/i.test(finalSummary)) {
         finalSummary = buildSocialFallbackSummaryFromTelegram(meaningfulMessages);
       }
       if (!finalSummary) {
-        if (shouldForceSocialTelegram(meaningfulMessages)) {
-          return {
-            output: {
-              summary: buildSocialFallbackSummaryFromTelegram(meaningfulMessages),
-              actionables: [],
-            },
-            model: "telegram-social-fallback",
-          };
-        }
         return {
           output: {
-            summary: `Quiet hour — no notable updates or chatter.`,
+            summary: buildSocialFallbackSummaryFromTelegram(meaningfulMessages),
             actionables: [],
           },
-          model: "structured-summary",
+          model: "telegram-social-fallback",
         };
       }
       return {
@@ -747,18 +738,9 @@ addEntrypoint({
       };
     } catch (error: any) {
       console.error("[telegram-summary-agent] LLM flow error:", error);
-      if (shouldForceSocialTelegram(meaningfulMessages)) {
-        return {
-          output: {
-            summary: buildSocialFallbackSummaryFromTelegram(meaningfulMessages),
-            actionables: [],
-          },
-          model: "telegram-social-fallback",
-        };
-      }
       return {
         output: {
-          summary: `Quiet hour — no notable updates or chatter.`,
+          summary: buildSocialFallbackSummaryFromTelegram(meaningfulMessages),
           actionables: [],
         },
         model: "telegram-error",
@@ -931,7 +913,7 @@ export async function executeSummariseChat(input: {
       .join("\n")
       .trim();
 
-    const fallbackText = fallbackSummary || `Quiet hour — no notable updates or chatter.`;
+    const fallbackText = fallbackSummary || `No material updates or chatter in this window.`;
 
     return {
       summary: finalizeSummary(
@@ -974,7 +956,7 @@ export async function executeSummariseChat(input: {
         };
       }
       return {
-        summary: `Quiet hour — no notable updates or chatter.`,
+        summary: `No material updates or chatter in this window.`,
         actionables: [],
       };
     }
@@ -1002,7 +984,7 @@ export async function executeSummariseChat(input: {
       .trim();
 
     const fallbackText =
-      fallbackSummary || `Quiet hour — no notable updates or chatter.`;
+      fallbackSummary || `No material updates or chatter in this window.`;
 
     return {
       summary: finalizeSummary(
