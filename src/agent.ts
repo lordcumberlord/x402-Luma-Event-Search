@@ -248,13 +248,13 @@ Deadline cue: explicit time phrases ("by Monday", "tomorrow", dates/times).
 
 Rendering rule (mandatory):
 
-If any task is detected, add a blank line, then print:
+After writing all Highlights, check if any messages include an @mention followed by an action verb or due time.
 
-**Action Items:**
+If yes, create a new section beginning with a blank line and the header **Action Items:**, then list each task there.
 
-• @User to <action> by <date/timeframe>.
+Do not include those task lines in the Highlights section.
 
-Move explicit task lines out of Highlights into Action Items.
+This header must always appear if any actionable items exist.
 
 Keep context in Highlights when it adds value (e.g., who assigned it, why it came up).
 
