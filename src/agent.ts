@@ -184,7 +184,7 @@ Humor & Tone Cues (binary, each adds +2 Social Impact and forces score ≥3)
 • Playful brag / self-deprecation ("I'm the villain", "what have I done", "I'm a menace", "I'm not sorry")
 • Edgy/roast markers ("roast", "ratio", "clowned", "villain arc", "🖕")
 • Money gag patterns (\$\d+(?:\.\d+)? , "tenny", "centos", "0.10")
-• Exaggeration/time flex (“for X years”, “at last”, “finally” in a non-task sentence)
+• Exaggeration/time flex ("for X years", "at last", "finally" in a non-task sentence)
 
 Mode Selection
 • Informational Mode when any topic has Importance ≥ 4.
@@ -202,7 +202,7 @@ Output Requirements
 Informational Mode Output
 • Group by topic; each topic gets 1–3 bullets covering decisions, tasks (with owners/dates), and key results.
 • Include an "Unresolved" section for open questions.
-• Finish with “Links/Files” referencing only items mentioned.
+• Finish with "Links/Files" referencing only items mentioned.
 
 Social Mode Output
 • Begin with a one-sentence mood summary.
@@ -716,7 +716,11 @@ addEntrypoint({
       });
 
       const summary = (result.summary ?? "").trim();
-      if (!summary) {
+      let finalSummary = summary;
+      if (/quiet hour/i.test(finalSummary) && shouldForceSocialTelegram(meaningfulMessages)) {
+        finalSummary = buildSocialFallbackSummaryFromTelegram(meaningfulMessages);
+      }
+      if (!finalSummary) {
         if (shouldForceSocialTelegram(meaningfulMessages)) {
           return {
             output: {
@@ -736,7 +740,7 @@ addEntrypoint({
       }
       return {
         output: {
-          summary,
+          summary: finalSummary,
           actionables: [],
         },
         model: "structured-summary",
@@ -958,7 +962,11 @@ export async function executeSummariseChat(input: {
     });
 
     const summary = (result.summary ?? "").trim();
-    if (!summary) {
+    let finalSummary = summary;
+    if (/quiet hour/i.test(finalSummary) && shouldForceSocialDiscord(messages)) {
+      finalSummary = buildSocialFallbackSummaryFromDiscord(messages);
+    }
+    if (!finalSummary) {
       if (shouldForceSocialDiscord(messages)) {
         return {
           summary: buildSocialFallbackSummaryFromDiscord(messages),
@@ -971,10 +979,9 @@ export async function executeSummariseChat(input: {
       };
     }
 
-    // Ensure Discord-friendly formatting (guard against overly long output)
-    const trimmedSummary = summary.length > 1800
-      ? summary.slice(0, 1795).trimEnd() + " …"
-      : summary;
+    const trimmedSummary = finalSummary.length > 1800
+      ? finalSummary.slice(0, 1795).trimEnd() + " …"
+      : finalSummary;
 
     return {
       summary: trimmedSummary,
