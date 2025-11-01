@@ -1346,8 +1346,8 @@ const server = Bun.serve({
         </div>
         <div class="action-card">
           <h3>Telegram Bot</h3>
-          <p>We’re building a Telegram experience with the same fast recaps. Check back very soon.</p>
-          <span class="button-disabled">Coming Soon</span>
+          <p>Add the bot to your chats and request channel summaries directly inside Telegram.</p>
+          <a class="button" href="https://t.me/x402SummariserBot" target="_blank" rel="noopener">Open in Telegram</a>
         </div>
       </div>
     </section>
