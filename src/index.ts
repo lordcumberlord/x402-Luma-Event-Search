@@ -871,6 +871,260 @@ const server = Bun.serve({
       });
     }
 
+    if (url.pathname === "/download" && req.method === "GET") {
+      return new Response(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>x402 Summariser Bot</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: center;
+      padding: 48px 16px 96px;
+    }
+    .page {
+      width: min(840px, 100%);
+    }
+    header {
+      margin-bottom: 48px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      letter-spacing: -0.03em;
+    }
+    p.lead {
+      margin: 0 auto;
+      max-width: 620px;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #cbd5f5;
+    }
+    .logo {
+      width: 120px;
+      aspect-ratio: 1;
+      margin: 0 auto 24px;
+      position: relative;
+      background: radial-gradient(circle at 25% 25%, #5ef2ff, #2563eb 70%);
+      border-radius: 48% 52% 58% 42% / 60% 60% 40% 40%;
+      box-shadow: 0 20px 35px rgba(37, 99, 235, 0.45);
+    }
+    .logo::after {
+      content: "";
+      position: absolute;
+      bottom: -18px;
+      right: 26px;
+      width: 36px;
+      height: 36px;
+      background: inherit;
+      border-radius: 0 0 70% 30%;
+      transform: rotate(35deg);
+      box-shadow: inherit;
+      filter: brightness(0.95);
+    }
+    .logo-face {
+      position: absolute;
+      inset: 18% 16% 28% 16%;
+      background: radial-gradient(circle at 50% 50%, #0f172a 55%, rgba(15, 23, 42, 0.8));
+      border-radius: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+    }
+    .logo-eye {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #8be3ff;
+      box-shadow: 0 0 12px rgba(139, 227, 255, 0.7);
+    }
+    .logo::before {
+      content: "";
+      position: absolute;
+      top: 16px;
+      left: 24px;
+      width: 14px;
+      height: 14px;
+      background: #61f0ff;
+      border-radius: 50%;
+      box-shadow: 0 88px 0 -2px #61f0ff;
+    }
+    .logo-antenna {
+      position: absolute;
+      top: -18px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .logo-antenna span {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 30%, #7ff8ff, #1d4ed8);
+      box-shadow: 0 8px 16px rgba(37, 99, 235, 0.5);
+    }
+    section {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.45);
+    }
+    section h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: #93c5fd;
+    }
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 16px;
+    }
+    .steps li {
+      padding: 20px 24px;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      position: relative;
+      line-height: 1.5;
+    }
+    .steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: -14px;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 600;
+      background: #2563eb;
+      color: #f8fafc;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.4);
+    }
+    .actions {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .action-card {
+      padding: 28px;
+      border-radius: 14px;
+      background: rgba(30, 41, 59, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .action-card h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #bfdbfe;
+    }
+    .action-card p {
+      margin: 0;
+      color: #cbd5f5;
+      line-height: 1.5;
+    }
+    a.button,
+    span.button-disabled {
+      margin-top: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 20px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    a.button {
+      background: linear-gradient(120deg, #2563eb, #1d4ed8);
+      color: #f8fafc;
+      box-shadow: 0 12px 32px rgba(37, 99, 235, 0.38);
+    }
+    a.button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 28px rgba(37, 99, 235, 0.45);
+    }
+    span.button-disabled {
+      background: rgba(148, 163, 184, 0.18);
+      color: rgba(226, 232, 240, 0.6);
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      cursor: not-allowed;
+    }
+    footer {
+      margin-top: 48px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="logo">
+        <div class="logo-antenna"><span></span><span></span></div>
+        <div class="logo-face"><span class="logo-eye"></span><span class="logo-eye"></span></div>
+      </div>
+      <h1>x402 Summariser Bot</h1>
+      <p class="lead">Bring instant AI summaries to your community and pay via x402 with each recap. Install the Discord bot today and get channel highlights on demand, with Telegram support arriving soon.</p>
+    </header>
+
+    <section>
+      <h2>How It Works</h2>
+      <ol class="steps">
+        <li>Install the bot into your Discord server and choose the channel you want to summarise.</li>
+        <li>Use the <code>/summarise</code> command to request highlights for the past few hours.</li>
+        <li>Pay securely via x402, then receive an actionable summary right inside Discord.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Download</h2>
+      <div class="actions">
+        <div class="action-card">
+          <h3>Discord Bot</h3>
+          <p>Add the bot to your server in seconds and start generating summaries immediately.</p>
+          <a class="button" href="https://discord.com/oauth2/authorize?client_id=1433449171565678603" target="_blank" rel="noopener">Install on Discord</a>
+        </div>
+        <div class="action-card">
+          <h3>Telegram Bot</h3>
+          <p>We’re building a Telegram experience with the same fast recaps. Check back very soon.</p>
+          <span class="button-disabled">Coming Soon</span>
+        </div>
+      </div>
+    </section>
+
+    <footer>Need help or want early access elsewhere? Reach out to the x402 team.</footer>
+  </main>
+</body>
+</html>`, {
+        headers: { "Content-Type": "text/html" },
+      });
+    }
+
     // Agent app routes - intercept entrypoint responses for Discord callbacks
     if (url.pathname.includes("/entrypoints/") && url.pathname.includes("/invoke")) {
       const isSummariseEntrypoint =
