@@ -372,6 +372,26 @@ async function handleDiscordCallback(req: Request): Promise<Response> {
     // Extract summary, filtering out any payment-related messages that might have leaked in
     let summary = output?.summary || "No summary available";
     
+    // Fix greeting if it appears as a bullet point - remove bullet and place on new line
+    summary = summary.replace(/^•\s*(Good (morning|afternoon|evening)![^\n]*)/m, "$1");
+    
+    // Remove any duplicate greeting lines (keep only the first one)
+    const greetingPattern = /^(Good (morning|afternoon|evening)![^\n]*)/m;
+    let firstGreetingIndex = -1;
+    summary = summary.replace(new RegExp(greetingPattern.source, "gm"), (match: string, offset: number) => {
+      if (firstGreetingIndex === -1) {
+        // Keep the first greeting
+        firstGreetingIndex = offset;
+        return match;
+      } else {
+        // Remove subsequent duplicates
+        return "";
+      }
+    }).replace(/\n\n+/g, "\n\n").trim(); // Clean up extra blank lines
+    
+    // Remove "Hello!" style greetings (should use time-based greetings)
+    summary = summary.replace(/^Hello!\s*Here is what happened[^\n]*\n?/im, "");
+    
     // Remove payment request messages that might have been included in the summary
     summary = summary
       .replace(/💳\s*\*\*Payment Required\*\*[\s\S]*?automatically\./gi, "")
@@ -493,6 +513,27 @@ async function handleTelegramCallback(req: Request): Promise<Response> {
 
     const output = result?.output || result;
     let summary = (output?.summary || "").trim();
+    
+    // Fix greeting if it appears as a bullet point - remove bullet and place on new line
+    summary = summary.replace(/^•\s*(Good (morning|afternoon|evening)![^\n]*)/m, "$1");
+    
+    // Remove any duplicate greeting lines (keep only the first one)
+    const greetingPattern = /^(Good (morning|afternoon|evening)![^\n]*)/m;
+    let firstGreetingIndex = -1;
+    summary = summary.replace(new RegExp(greetingPattern.source, "gm"), (match: string, offset: number) => {
+      if (firstGreetingIndex === -1) {
+        // Keep the first greeting
+        firstGreetingIndex = offset;
+        return match;
+      } else {
+        // Remove subsequent duplicates
+        return "";
+      }
+    }).replace(/\n\n+/g, "\n\n").trim(); // Clean up extra blank lines
+    
+    // Remove "Hello!" style greetings (should use time-based greetings)
+    summary = summary.replace(/^Hello!\s*Here is what happened[^\n]*\n?/im, "").trim();
+    
     if (!summary) {
       summary = "No material updates or chatter in this window.";
     }

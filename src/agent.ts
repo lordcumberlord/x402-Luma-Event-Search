@@ -599,12 +599,8 @@ addEntrypoint({
         .replace(/x402 Summariser[^\n]*\n?/gi, "") // Remove "x402 Summariser:" prefix
         .trim();
 
-      summary = finalizeSummary(
-        summary,
-        lookbackMinutes,
-        rangeLabel,
-        conversationEntries
-      );
+      // Don't call finalizeSummary - the structured LLM output already includes the greeting
+      // and proper formatting. Just use it as-is.
 
       return {
         output: {
