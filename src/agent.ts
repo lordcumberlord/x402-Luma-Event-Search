@@ -815,7 +815,10 @@ addEntrypoint({
       const trimmed = msg.text?.trim();
       return trimmed && !trimmed.startsWith("/");
     });
+    console.log(`[telegram-entrypoint] Total messages in window: ${messages.length}`);
+    console.log(`[telegram-entrypoint] Meaningful messages (non-command): ${meaningfulMessages.length}`);
     if (meaningfulMessages.length < 3) {
+      console.log(`[telegram-entrypoint] Too few messages (${meaningfulMessages.length} < 3), returning fallback`);
       if (meaningfulMessages.length > 0) {
         return {
           output: {
