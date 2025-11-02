@@ -242,6 +242,26 @@ Follow the order → Greeting → Highlights → Action Items.
 Always output the header literally as **Action Items:** (do not render bold while generating).
 
 Keep tone friendly and natural; no explicit "Mood:" lines.
+
+### 🔹 FINAL OUTPUT CHECK
+
+Before finalising the summary:
+
+1. Scan the draft for any lines containing both an @mention and an action verb (e.g., "report", "send", "prepare", "fix", "confirm", "post", "complete") or a due time.
+
+2. If any such lines exist:
+
+   - Remove them from the main bullet list.
+
+   - Insert a blank line.
+
+   - Add the header:
+
+     **Action Items:**
+
+   - Place those lines under this header, each on its own bullet.
+
+3. Always perform this check as the last step before output.
 `;
 
 const structuredSummarizerSignature =
