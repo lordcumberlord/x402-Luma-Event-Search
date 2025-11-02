@@ -198,9 +198,13 @@ Summarize key discussions, jokes, or updates.
 
 Use natural sentences ("joked about…", "shared updates on…").
 
+NEVER quote messages verbatim - always paraphrase and summarize. Each bullet should be a brief summary in your own words, not a direct quote.
+
+If a message is particularly notable, capture its key point or essence rather than quoting it. Keep each bullet under 150 characters when possible.
+
 Ignore stickers, emoji-only posts, bot messages, joins/leaves, and duplicates.
 
-Stop when all notable items are covered or max_chars is reached.
+Stop when all notable items are covered or max_chars is reached. If approaching the limit, prioritize completing full summaries over partial quotes.
 
 Selection logic
 
