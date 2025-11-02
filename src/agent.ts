@@ -289,6 +289,12 @@ Write in plain, confident, lightly humorous English.
 
 Use Markdown bullets and headers; no code blocks in actual output.
 
+Always format section headers as bold Markdown (**Highlights:**, **Action Items:**).
+
+Each highlight must begin with a bullet (•).
+
+If you detect a task or assignment, always output it under **Action Items:** as • @User to <action> by <timeframe>.. Do not re-describe tasks inside Highlights unless extra context adds value.
+
 Use @mentions when available.
 
 Length guidance:

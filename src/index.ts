@@ -1697,7 +1697,13 @@ if (telegramToken) {
       });
       await bot.start();
       console.log("🤖 Telegram summariser bot ready");
-    } catch (err) {
+    } catch (err: any) {
+      // Handle 409 conflict gracefully (multiple instances running)
+      if (err?.error_code === 409) {
+        console.warn("[telegram] Bot already running elsewhere (409 conflict). Skipping local bot start.");
+        console.warn("[telegram] This is normal if the bot is running on Railway or in another terminal.");
+        return;
+      }
       console.error("[telegram] Failed to start bot", err);
     }
   })();
