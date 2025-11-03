@@ -1451,7 +1451,7 @@ const server = Bun.serve({
         <div class="action-card">
           <h3>Discord Bot</h3>
           <p>Add the bot to your server in seconds and start generating summaries immediately.</p>
-          <a class="button" href="https://discord.com/oauth2/authorize?client_id=1433449171565678603" target="_blank" rel="noopener">Install on Discord</a>
+          <a class="button" href="https://discord.com/oauth2/authorize?client_id=1433449171565678603&scope=bot&permissions=68608" target="_blank" rel="noopener">Install on Discord</a>
         </div>
         <div class="action-card">
           <h3>Telegram Bot</h3>
