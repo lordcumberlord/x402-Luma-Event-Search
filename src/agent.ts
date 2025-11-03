@@ -102,7 +102,7 @@ const configOverrides: AgentKitConfig = {
       "https://facilitator.x402.rs",
     payTo:
       (process.env.PAY_TO as `0x${string}`) ??
-      "0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429",
+      "0x1b0006dbfbf4d8ec99cd7c40c43566eaa7d95fed",
     network: (process.env.NETWORK as any) ?? "base",
     defaultPrice: process.env.DEFAULT_PRICE ?? "0.05",
     // Add token configuration for USDC

@@ -1542,7 +1542,7 @@ const server = Bun.serve({
           : "Summarise Discord channel";
 
         const payToAddress =
-          process.env.PAY_TO || "0xb308ed39d67D0d4BAe5BC2FAEF60c66BBb6AE429";
+          process.env.PAY_TO || "0x1b0006dbfbf4d8ec99cd7c40c43566eaa7d95fed";
         const facilitatorUrl =
           process.env.FACILITATOR_URL || "https://facilitator.x402.rs";
         const agentBaseUrl =
