@@ -672,16 +672,26 @@ const server = Bun.serve({
 
     if (url.pathname === "/assets/logo.png" && req.method === "GET") {
       try {
-        const logoPath = "./public/assets/logo.png";
-        const file = Bun.file(logoPath);
-        if (await file.exists()) {
-          return new Response(file, {
-            headers: {
-              "Content-Type": "image/png",
-              "Cache-Control": "public, max-age=86400",
-            },
-          });
+        // Try multiple possible paths
+        const possiblePaths = [
+          "./public/assets/logo.png",
+          "public/assets/logo.png",
+          `${process.cwd()}/public/assets/logo.png`,
+          `${import.meta.dir}/../public/assets/logo.png`,
+        ];
+        
+        for (const logoPath of possiblePaths) {
+          const file = Bun.file(logoPath);
+          if (await file.exists()) {
+            return new Response(file, {
+              headers: {
+                "Content-Type": "image/png",
+                "Cache-Control": "public, max-age=86400",
+              },
+            });
+          }
         }
+        console.error("[assets] Logo.png not found in any of the expected paths:", possiblePaths);
       } catch (error) {
         console.error("[assets] Error serving logo.png:", error);
       }
@@ -777,7 +787,8 @@ const server = Bun.serve({
         ? "After payment, your summary will automatically appear in Telegram."
         : "After payment, your summary will automatically appear in Discord.";
 
-      const origin = url.origin;
+      // Ensure HTTPS origin
+      const origin = url.origin.replace(/^http:/, "https:");
       const logoUrl = `${origin}/assets/logo.png`;
 
       const pageConfig = {
@@ -1250,7 +1261,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/download" && req.method === "GET") {
-      const origin = url.origin;
+      // Ensure HTTPS origin
+      const origin = url.origin.replace(/^http:/, "https:");
       const ogImageUrl = `${origin}/assets/logo.png`;
       return new Response(`<!DOCTYPE html>
 <html lang="en">
