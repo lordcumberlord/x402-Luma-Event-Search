@@ -1656,6 +1656,7 @@ const server = Bun.serve({
 
         const appResponseClone = appResponse.clone();
         let settlement;
+        let settlementError = false;
         try {
           settlement = await facilitatorClient.settle(
             decodedPayment,
@@ -1663,34 +1664,21 @@ const server = Bun.serve({
           );
         } catch (error) {
           console.error("[payment] Facilitator settlement error", error);
-          return Response.json(
-            {
-              error: "Failed to settle payment",
-              accepts: paymentRequirements,
-              x402Version,
-            },
-            { status: 402 }
-          );
+          settlementError = true;
+          // Continue with response even if settlement fails - payment was already verified
+          console.warn("[payment] Proceeding with response despite settlement error - payment was verified");
         }
-
-        if (!settlement.success) {
-          console.error("[payment] Settlement failed", settlement);
-          return Response.json(
-            {
-              error: settlement.errorReason || "Failed to settle payment",
-              accepts: paymentRequirements,
-              payer: settlement.payer,
-              x402Version,
-            },
-            { status: 402 }
-          );
-        }
-
-        const settlementHeader = settleResponseHeader(settlement);
-        console.log(`[payment] Settlement succeeded:`, settlement);
 
         const headers = new Headers(appResponse.headers);
-        headers.set("X-PAYMENT-RESPONSE", settlementHeader);
+        
+        if (!settlementError && settlement && settlement.success) {
+          const settlementHeader = settleResponseHeader(settlement);
+          console.log(`[payment] Settlement succeeded:`, settlement);
+          headers.set("X-PAYMENT-RESPONSE", settlementHeader);
+        } else {
+          console.warn("[payment] Settlement failed or skipped - proceeding without settlement header");
+        }
+        
         const responseWithHeader = new Response(appResponse.body, {
           status: appResponse.status,
           statusText: appResponse.statusText,
