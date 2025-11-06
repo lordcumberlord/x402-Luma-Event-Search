@@ -120,7 +120,7 @@ export function createTelegramBot(options: {
     );
 
     const paymentMessage = await ctx.reply(
-      `💳 *Payment Required*\n\n` +
+      `🪙 *Payment Required*\n\n` +
         `We'll summarise the last ${lookbackMinutes} minutes of this chat.`,
       {
         parse_mode: "Markdown",
