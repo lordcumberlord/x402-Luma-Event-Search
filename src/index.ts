@@ -1541,8 +1541,9 @@ const server = Bun.serve({
           ? "Summarise Telegram chat"
           : "Summarise Discord channel";
 
-        const payToAddress =
-          process.env.PAY_TO || "0x1b0006dbfbf4d8ec99cd7c40c43566eaa7d95fed";
+        const payToAddress = (
+          process.env.PAY_TO || "0x1b0006dbfbf4d8ec99cd7c40c43566eaa7d95fed"
+        ).toLowerCase();
         const facilitatorUrl =
           process.env.FACILITATOR_URL || "https://facilitator.x402.rs";
         const agentBaseUrl =
@@ -1658,14 +1659,27 @@ const server = Bun.serve({
         let settlement;
         let settlementError = false;
         try {
+          console.log("[payment] Attempting settlement with:", {
+            decodedPaymentKeys: Object.keys(decodedPayment),
+            selectedRequirementsKeys: Object.keys(selectedPaymentRequirements),
+            resource: selectedPaymentRequirements.resource,
+            payTo: selectedPaymentRequirements.payTo,
+            maxAmountRequired: selectedPaymentRequirements.maxAmountRequired,
+          });
           settlement = await facilitatorClient.settle(
             decodedPayment,
             selectedPaymentRequirements
           );
-        } catch (error) {
+        } catch (error: any) {
           console.error("[payment] Facilitator settlement error", error);
+          console.error("[payment] Settlement error details:", {
+            message: error?.message,
+            name: error?.name,
+            stack: error?.stack?.substring(0, 500),
+          });
           settlementError = true;
           // Continue with response even if settlement fails - payment was already verified
+          console.warn("[payment] ⚠️ WARNING: Settlement failed - payment may not have been processed!");
           console.warn("[payment] Proceeding with response despite settlement error - payment was verified");
         }
 
