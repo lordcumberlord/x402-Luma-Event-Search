@@ -672,17 +672,21 @@ const server = Bun.serve({
 
     if (url.pathname === "/assets/logo.png" && req.method === "GET") {
       try {
-        // Try multiple possible paths
+        // Try multiple possible paths - prioritize src/assets (deployed with code)
         const possiblePaths = [
+          `${import.meta.dir}/assets/logo.png`, // src/assets/logo.png (relative to src/index.ts)
+          "./src/assets/logo.png",
+          "src/assets/logo.png",
           "./public/assets/logo.png",
           "public/assets/logo.png",
+          `${process.cwd()}/src/assets/logo.png`,
           `${process.cwd()}/public/assets/logo.png`,
-          `${import.meta.dir}/../public/assets/logo.png`,
         ];
         
         for (const logoPath of possiblePaths) {
           const file = Bun.file(logoPath);
           if (await file.exists()) {
+            console.log(`[assets] Serving logo.png from: ${logoPath}`);
             return new Response(file, {
               headers: {
                 "Content-Type": "image/png",
