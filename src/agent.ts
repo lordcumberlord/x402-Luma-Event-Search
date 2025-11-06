@@ -825,7 +825,7 @@ addEntrypoint({
     // with greetings and witty closers (see Example B in the prompt)
     const summarizerMessages = buildTelegramSummarizerMessages(meaningfulMessages);
     const windowLabel = `last ${lookbackMinutes} minutes`;
-    const maxChars = 1100;
+    const maxChars = 1000;
     
     // Log reaction counts for debugging
     const messagesWithReactions = summarizerMessages.filter(msg => 
@@ -1075,7 +1075,7 @@ export async function executeSummariseChat(input: {
   }
 
   const summarizerMessages = buildDiscordSummarizerMessages(messages, guildMeta);
-  const maxChars = 1200;
+  const maxChars = 1000;
   const payload = buildSummarizerPayload(
     "discord",
     windowLabel,
