@@ -691,8 +691,7 @@ const server = Bun.serve({
             return new Response(file, {
               headers: {
                 "Content-Type": "image/png",
-                "Cache-Control": "public, max-age=3600, must-revalidate",
-                "ETag": `"${Date.now()}"`, // Add ETag for cache validation
+                "Cache-Control": "public, max-age=86400", // Cache for 24 hours
               },
             });
           }
@@ -795,9 +794,7 @@ const server = Bun.serve({
 
       // Ensure HTTPS origin
       const origin = url.origin.replace(/^http:/, "https:");
-      // Add cache-busting version parameter based on file modification time
-      const logoVersion = Date.now(); // This will change on each deployment
-      const logoUrl = `${origin}/assets/logo.png?v=${logoVersion}`;
+      const logoUrl = `${origin}/assets/logo.png`;
 
       const pageConfig = {
         source,
@@ -1271,9 +1268,7 @@ const server = Bun.serve({
     if (url.pathname === "/download" && req.method === "GET") {
       // Ensure HTTPS origin
       const origin = url.origin.replace(/^http:/, "https:");
-      // Add cache-busting version parameter based on file modification time
-      const logoVersion = Date.now(); // This will change on each deployment
-      const ogImageUrl = `${origin}/assets/logo.png?v=${logoVersion}`;
+      const ogImageUrl = `${origin}/assets/logo.png`;
       return new Response(`<!DOCTYPE html>
 <html lang="en">
 <head>
