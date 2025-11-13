@@ -18,7 +18,7 @@ const DISCORD_API_DEFAULT_BASE = "https://discord.com/api/v10";
 
 // Payment constants
 const USDC_DECIMALS = 6;
-const DEFAULT_PRICE_USDC = BigInt(50000); // 0.05 USDC (50000 / 10^6)
+const DEFAULT_PRICE_USDC = BigInt(100000); // 0.10 USDC (100000 / 10^6)
 const EPHEMERAL_FLAG = 1 << 6;
 
 function makeEphemeralResponse(message: string): Response {
@@ -230,7 +230,7 @@ async function handleDiscordInteraction(req: Request): Promise<Response> {
             const paymentUrl = `${agentBaseUrl}/pay?channelId=${channel_id}&serverId=${guild_id || ""}&lookbackMinutes=${lookbackMinutes}&discord_callback=${callbackParam}`;
             
             // Get price from entrypoint config or default
-            const price = process.env.ENTRYPOINT_PRICE || "0.05";
+            const price = process.env.ENTRYPOINT_PRICE || "0.10";
             const currency = process.env.PAYMENT_CURRENCY || "USDC";
             
             const paymentMessage = `💳 **Payment Required**
@@ -910,7 +910,7 @@ const server = Bun.serve({
       }
       
       const entrypointUrl = `${agentBaseUrl}/entrypoints/${entrypointPath}/invoke`;
-      const price = process.env.ENTRYPOINT_PRICE || "0.05";
+      const price = process.env.ENTRYPOINT_PRICE || "0.10";
       const currency = process.env.PAYMENT_CURRENCY || "USDC";
 
       // Ensure HTTPS origin
@@ -1175,9 +1175,9 @@ const server = Bun.serve({
         });
         
         // Wrap fetch with payment handling (pass viem wallet client)
-        // maxValue: 0.05 USDC = 50000 (6 decimals)
+        // maxValue: 0.10 USDC = 100000 (6 decimals)
         // Note: x402 uses EIP-3009 for gasless transactions - facilitator pays gas
-        const x402Fetch = wrapFetchWithPayment(fetch, walletClient, BigInt(50000));
+        const x402Fetch = wrapFetchWithPayment(fetch, walletClient, BigInt(100000));
         
         const entrypointUrl = cfg.entrypointUrl;
         
@@ -1508,9 +1508,9 @@ const server = Bun.serve({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Luma Event Search Bot</title>
-  <meta name="description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.05 via x402.">
+  <meta name="description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.10 via x402.">
   <meta property="og:title" content="Luma Event Search Bot">
-  <meta property="og:description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.05 via x402.">
+  <meta property="og:description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.10 via x402.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="${origin}/download">
   <meta property="og:image" content="${ogImageUrl}">
@@ -1519,7 +1519,7 @@ const server = Bun.serve({
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Luma Event Search Bot">
-  <meta name="twitter:description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.05 via x402.">
+  <meta name="twitter:description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.10 via x402.">
   <meta name="twitter:image" content="${ogImageUrl}">
   <style>
     :root {
@@ -1783,7 +1783,7 @@ const server = Bun.serve({
         const normalizedPath = url.pathname.replace(/^\/+/, '/');
         const fullEntrypointUrl =
           agentBaseUrl.replace(/\/+$/, '') + normalizedPath + (url.search ? url.search : "");
-        const price = process.env.ENTRYPOINT_PRICE || "0.05";
+        const price = process.env.ENTRYPOINT_PRICE || "0.10";
         const currency = process.env.PAYMENT_CURRENCY || "USDC";
         const x402Version = 1.0;
 
@@ -1793,7 +1793,7 @@ const server = Bun.serve({
           description: `${sourceLabel} - Pay $${price} ${currency}`,
           mimeType: "application/json",
           payTo: payToAddress,
-          maxAmountRequired: "50000",
+          maxAmountRequired: "100000",
           maxTimeoutSeconds: 300,
           network: "base" as const,
           asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
