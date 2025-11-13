@@ -1648,8 +1648,10 @@ const server = Bun.serve({
           process.env.FACILITATOR_URL || "https://facilitator.x402.rs";
         const agentBaseUrl =
           process.env.AGENT_URL || `https://x402-summariser-production.up.railway.app`;
+        // Normalize pathname to remove leading slashes and ensure single slash
+        const normalizedPath = url.pathname.replace(/^\/+/, '/');
         const fullEntrypointUrl =
-          agentBaseUrl.replace(/\/+$/, '') + normalizedPathname + (url.search ? url.search : "");
+          agentBaseUrl.replace(/\/+$/, '') + normalizedPath + (url.search ? url.search : "");
         const price = process.env.ENTRYPOINT_PRICE || "0.05";
         const currency = process.env.PAYMENT_CURRENCY || "USDC";
         const x402Version = 1.0;
