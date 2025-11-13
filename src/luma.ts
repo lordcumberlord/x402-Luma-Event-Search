@@ -236,9 +236,20 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
   const event = eventData.event || eventData;
   const locationInfo = event.geo_address_info;
   
+  // Build location from structured fields - just use city name
+  // This avoids postal codes that might be in city_state and redundant region names
   let location: string | undefined;
-  if (locationInfo?.city_state) {
-    location = locationInfo.city_state;
+  if (locationInfo) {
+    // Just use the city name - clean and simple
+    if (locationInfo.geo_city) {
+      location = locationInfo.geo_city;
+    } else if (locationInfo.city_state) {
+      // Fallback to city_state if geo_city isn't available
+      // Try to extract just the city part (before comma if it exists)
+      const cityState = locationInfo.city_state;
+      const cityPart = cityState.split(',')[0].trim();
+      location = cityPart || cityState;
+    }
   } else if (event.coordinate) {
     // Could geocode coordinates, but for now just note it has coordinates
     location = "Location available";
