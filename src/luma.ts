@@ -72,15 +72,31 @@ function normalizeToSlug(query: string): string {
 }
 
 /**
- * Build Luma event URL from calendar slug and event URL
+ * Build Luma event URL from event slug/ID
+ * Individual events use format: https://luma.com/{event-slug}
+ * Calendar fallback uses: https://luma.com/{calendar-slug}
  */
-function buildEventUrl(calendarSlug: string, eventUrl?: string): string {
+function buildEventUrl(calendarSlug: string, eventUrl?: string, eventApiId?: string): string {
+  // If we have an event slug/URL, use it directly for individual event page
   if (eventUrl) {
-    // Individual event URL: https://lu.ma/{calendar-slug}/{event-url}
-    return `https://lu.ma/${calendarSlug}/${eventUrl}`;
+    // Individual event URL: https://luma.com/{event-slug}
+    // Remove any calendar prefix if present
+    const cleanEventUrl = eventUrl.replace(/^[^/]+\//, ''); // Remove "calendar-slug/" prefix if present
+    return `https://luma.com/${cleanEventUrl}`;
   }
+  
+  // If we have event API ID, try to construct URL from it
+  // Event API IDs might be in format like "evt-xxx" or just the slug
+  if (eventApiId) {
+    // If it's an API ID format (starts with "evt-"), we might need to fetch the actual slug
+    // For now, try using it directly if it looks like a slug
+    if (!eventApiId.startsWith('evt-')) {
+      return `https://luma.com/${eventApiId}`;
+    }
+  }
+  
   // Calendar URL fallback
-  return `https://lu.ma/${calendarSlug}`;
+  return `https://luma.com/${calendarSlug}`;
 }
 
 /**
@@ -109,9 +125,17 @@ async function getCalendarEvents(calendarSlug: string, calendarApiId: string, li
         
         if (data.data?.featured_items && Array.isArray(data.data.featured_items)) {
           // Extract event objects from featured_items
+          // featured_items structure: { api_id, event: { ... }, url: "calendar-slug/event-slug" }
           events = data.data.featured_items
             .filter((item: any) => item.event) // Only items with event data
-            .map((item: any) => item.event || item); // Extract event object
+            .map((item: any) => {
+              // Preserve the item-level url if it exists (contains the event slug)
+              const eventObj = item.event || item;
+              if (item.url && !eventObj.url) {
+                eventObj.url = item.url;
+              }
+              return eventObj;
+            });
         } else {
           // Try other possible locations
           events = 
@@ -185,17 +209,33 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
     location = "Location available";
   }
   
-  const eventUrl = event.url || event.slug;
-  const fullUrl = buildEventUrl(calendarSlug, eventUrl);
+  // Extract event URL/slug - could be in various fields
+  const eventUrl = event.url || event.slug || event.event_url;
+  const eventApiId = event.api_id || event.id;
+  
+  // Try to get the event slug from the URL if it's a full URL
+  let eventSlug: string | undefined;
+  if (eventUrl) {
+    // If it's already just a slug (no slashes), use it directly
+    if (!eventUrl.includes('/')) {
+      eventSlug = eventUrl;
+    } else {
+      // Extract slug from URL like "calendar-slug/event-slug" or full URL
+      const parts = eventUrl.split('/').filter(Boolean);
+      eventSlug = parts[parts.length - 1]; // Get last part
+    }
+  }
+  
+  const fullUrl = buildEventUrl(calendarSlug, eventSlug, eventApiId);
   
   return {
-    id: event.api_id || event.id || `event-${index}`,
+    id: eventApiId || `event-${index}`,
     title: event.name || event.title || "Untitled Event",
     url: fullUrl,
     description: event.description_short || event.description,
     location: location,
     date: event.start_at || event.startAt || event.date,
-    eventApiId: event.api_id || event.id,
+    eventApiId: eventApiId,
   };
 }
 
