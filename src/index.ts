@@ -1500,7 +1500,8 @@ const server = Bun.serve({
     if (url.pathname === "/download" && req.method === "GET") {
       // Ensure HTTPS origin
       const origin = url.origin.replace(/^http:/, "https:");
-      const ogImageUrl = `${origin}/assets/hyperlink.png`;
+      const ogImageUrl = `${origin}/assets/hyperlink.png`; // For Open Graph meta tags (X/Twitter sharing)
+      const logoImageUrl = `${origin}/assets/searcher.png`; // For the logo displayed on the page
       const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || "LumaEventSearchBot";
       return new Response(`<!DOCTYPE html>
 <html lang="en">
@@ -1714,7 +1715,7 @@ const server = Bun.serve({
   <main class="page">
     <header>
       <div class="logo">
-        <img src="${ogImageUrl}" alt="Luma Event Search Bot Logo">
+        <img src="${logoImageUrl}" alt="Luma Event Search Bot Logo">
       </div>
       <h1>Luma Event Search Bot</h1>
       <p class="lead">Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity, then use <code>/more</code> to see the next batch.</p>
