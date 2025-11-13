@@ -127,6 +127,15 @@ async function getCalendarEvents(calendarSlug: string, calendarApiId: string, li
         if (data.data?.featured_items && Array.isArray(data.data.featured_items)) {
           // Extract event objects from featured_items
           // featured_items structure: { api_id, event: { ... }, url: "calendar-slug/event-slug" }
+          // Log first featured_item structure to see what's available
+          if (data.data.featured_items.length > 0) {
+            const firstItem = data.data.featured_items[0];
+            console.log(`[luma] Featured item fields:`, Object.keys(firstItem));
+            if (firstItem.event) {
+              console.log(`[luma] Featured item.event fields:`, Object.keys(firstItem.event));
+              console.log(`[luma] Featured item.event sample (first 300 chars):`, JSON.stringify(firstItem.event).substring(0, 300));
+            }
+          }
           events = data.data.featured_items
             .filter((item: any) => item.event) // Only items with event data
             .map((item: any) => {
@@ -134,6 +143,13 @@ async function getCalendarEvents(calendarSlug: string, calendarApiId: string, li
               const eventObj = item.event || item;
               if (item.url && !eventObj.url) {
                 eventObj.url = item.url;
+              }
+              // Also preserve any item-level fields that might have description/attendee info
+              if (item.description && !eventObj.description) {
+                eventObj.description = item.description;
+              }
+              if (item.num_rsvps !== undefined && eventObj.num_rsvps === undefined) {
+                eventObj.num_rsvps = item.num_rsvps;
               }
               return eventObj;
             });
@@ -151,6 +167,14 @@ async function getCalendarEvents(calendarSlug: string, calendarApiId: string, li
         
         if (Array.isArray(events) && events.length > 0) {
           console.log(`[luma] Found ${events.length} events from calendar ${calendarSlug} via URL endpoint`);
+          // Log first event structure to see what fields are available
+          if (events.length > 0) {
+            const firstEvent = events[0];
+            console.log(`[luma] Calendar event fields:`, Object.keys(firstEvent));
+            if (firstEvent.event) {
+              console.log(`[luma] Calendar event.event fields:`, Object.keys(firstEvent.event));
+            }
+          }
           return events.slice(0, limit);
         }
       }
@@ -343,6 +367,13 @@ async function searchByTopic(query: string, limit: number): Promise<LumaEvent[]>
                     // Log available fields for debugging
                     if (idx === 0) {
                       console.log(`[luma] Sample event detail fields:`, Object.keys(detailedEvent));
+                      console.log(`[luma] Sample description fields:`, {
+                        description: detailedEvent.description?.substring(0, 100),
+                        description_short: detailedEvent.description_short?.substring(0, 100),
+                        summary: detailedEvent.summary?.substring(0, 100),
+                        bio: detailedEvent.bio?.substring(0, 100),
+                        about: detailedEvent.about?.substring(0, 100),
+                      });
                       console.log(`[luma] Sample attendee fields:`, {
                         num_rsvps: detailedEvent.num_rsvps,
                         num_attendees: detailedEvent.num_attendees,
@@ -354,11 +385,21 @@ async function searchByTopic(query: string, limit: number): Promise<LumaEvent[]>
                         num_going: detailedEvent.num_going,
                         going: detailedEvent.going,
                         rsvps: detailedEvent.rsvps,
+                        rsvps_count: detailedEvent.rsvps_count,
+                        going_users_count: detailedEvent.going_users_count,
                       });
+                      // Log full response structure for first event (truncated)
+                      console.log(`[luma] Full event detail response (first 500 chars):`, JSON.stringify(detailedEvent).substring(0, 500));
                     }
                     
-                    // Update description if we have a better one
-                    const newDescription = detailedEvent.description_short || detailedEvent.description || detailedEvent.summary;
+                    // Update description - try various possible field names
+                    const newDescription = 
+                      detailedEvent.description_short || 
+                      detailedEvent.description || 
+                      detailedEvent.summary ||
+                      detailedEvent.bio ||
+                      detailedEvent.about ||
+                      detailedEvent.content;
                     if (newDescription && (!event.description || newDescription.length > event.description.length)) {
                       event.description = newDescription;
                     }
@@ -373,9 +414,12 @@ async function searchByTopic(query: string, limit: number): Promise<LumaEvent[]>
                       detailedEvent.going_count ||
                       detailedEvent.attendees_count ||
                       detailedEvent.num_going ||
+                      detailedEvent.rsvps_count ||
+                      detailedEvent.going_users_count ||
                       (typeof detailedEvent.going === 'number' ? detailedEvent.going : undefined) ||
                       (Array.isArray(detailedEvent.rsvps) ? detailedEvent.rsvps.length : undefined) ||
-                      (Array.isArray(detailedEvent.going) ? detailedEvent.going.length : undefined);
+                      (Array.isArray(detailedEvent.going) ? detailedEvent.going.length : undefined) ||
+                      (Array.isArray(detailedEvent.going_users) ? detailedEvent.going_users.length : undefined);
                     
                     if (newAttendeeCount !== undefined) {
                       event.attendeeCount = newAttendeeCount;
