@@ -1500,7 +1500,7 @@ const server = Bun.serve({
     if (url.pathname === "/download" && req.method === "GET") {
       // Ensure HTTPS origin
       const origin = url.origin.replace(/^http:/, "https:");
-      const ogImageUrl = `${origin}/assets/searcher.png`;
+      const ogImageUrl = `${origin}/assets/hyperlink.png`;
       const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || "LumaEventSearchBot";
       return new Response(`<!DOCTYPE html>
 <html lang="en">
