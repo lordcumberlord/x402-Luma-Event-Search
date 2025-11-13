@@ -910,7 +910,9 @@ const server = Bun.serve({
       }
       
       const entrypointUrl = `${agentBaseUrl}/entrypoints/${entrypointPath}/invoke`;
-      const price = process.env.ENTRYPOINT_PRICE || "0.10";
+      // Normalize price display - ensure it shows as "0.10" not "0.010"
+      const rawPrice = process.env.ENTRYPOINT_PRICE || "0.10";
+      const price = parseFloat(rawPrice).toFixed(2);
       const currency = process.env.PAYMENT_CURRENCY || "USDC";
 
       // Ensure HTTPS origin
