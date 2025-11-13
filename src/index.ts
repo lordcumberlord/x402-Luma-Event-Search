@@ -1736,7 +1736,7 @@ const server = Bun.serve({
         <div class="action-card">
           <h3>Telegram Bot</h3>
           <p>Add the bot to your chats and search for events directly inside Telegram.</p>
-          <a class="button" href="https://t.me/${telegramBotUsername}" target="_blank" rel="noopener">Open in Telegram</a>
+          <a class="button" href="https://t.me/LumaSearchBot" target="_blank" rel="noopener">Open in Telegram</a>
         </div>
       </div>
     </section>
