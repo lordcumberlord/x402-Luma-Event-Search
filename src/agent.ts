@@ -115,34 +115,47 @@ const configOverrides: AgentKitConfig = {
   },
 };
 
-const axClient = createAxLLMClient({
-  logger: {
-    warn(message, error) {
-      if (error) {
-        console.warn(`[discord-summary-agent] ${message}`, error);
-      } else {
-        console.warn(`[discord-summary-agent] ${message}`);
-      }
-    },
-  },
-  provider:
-    process.env.AX_PROVIDER ?? process.env.AXLLM_PROVIDER ?? process.env.OPENAI_PROVIDER ?? undefined,
-  model:
-    process.env.AX_MODEL ?? process.env.AXLLM_MODEL ?? process.env.OPENAI_MODEL ?? undefined,
-  apiKey:
-    process.env.AX_API_KEY ?? process.env.AXLLM_API_KEY ?? process.env.OPENAI_API_KEY ?? undefined,
-  x402: {
-    ai: {
-      apiURL:
-        process.env.AX_API_URL ??
-        process.env.AXLLM_API_URL ??
-        process.env.OPENAI_API_URL ??
-        undefined,
-    },
-  },
-});
+// Only initialize LLM client if API key is provided (for summarise endpoints)
+// Luma search doesn't need LLM, so this is optional
+const axClient = (() => {
+  const apiKey = process.env.AX_API_KEY ?? process.env.AXLLM_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+  
+  try {
+    return createAxLLMClient({
+      logger: {
+        warn(message, error) {
+          if (error) {
+            console.warn(`[discord-summary-agent] ${message}`, error);
+          } else {
+            console.warn(`[discord-summary-agent] ${message}`);
+          }
+        },
+      },
+      provider:
+        process.env.AX_PROVIDER ?? process.env.AXLLM_PROVIDER ?? process.env.OPENAI_PROVIDER ?? undefined,
+      model:
+        process.env.AX_MODEL ?? process.env.AXLLM_MODEL ?? process.env.OPENAI_MODEL ?? undefined,
+      apiKey: apiKey,
+      x402: {
+        ai: {
+          apiURL:
+            process.env.AX_API_URL ??
+            process.env.AXLLM_API_URL ??
+            process.env.OPENAI_API_URL ??
+            undefined,
+        },
+      },
+    });
+  } catch (error) {
+    console.warn('[agent] Failed to initialize LLM client:', error);
+    return null;
+  }
+})();
 
-if (!axClient.isConfigured()) {
+if (!axClient || !axClient.isConfigured()) {
   console.warn(
     "[discord-summary-agent] Ax LLM provider not configured — defaulting to scripted fallbacks."
   );
@@ -651,7 +664,7 @@ addEntrypoint({
     
     const timeWindow = `${start.toISOString()} → ${end.toISOString()} (${rangeLabel})`;
 
-    const llm = axClient.ax;
+    const llm = axClient?.ax;
     if (!llm) {
       const fallbackSummary = conversation
         .split("\n")
@@ -855,7 +868,7 @@ addEntrypoint({
       summarizerMessages
     );
 
-    const llm = axClient.ax;
+    const llm = axClient?.ax;
     if (!llm) {
       return {
         output: {
