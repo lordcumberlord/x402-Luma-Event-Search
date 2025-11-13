@@ -556,22 +556,128 @@ function extractLocationFromEvent(eventData: any): string | undefined {
 }
 
 /**
+ * Get place API ID from city name/slug
+ * Tries to find the place by slug or name
+ */
+async function getPlaceApiId(cityName: string): Promise<string | null> {
+  // Normalize city name to slug format
+  const slug = cityName.toLowerCase().trim().replace(/\s+/g, '-');
+  
+  // Try to fetch place by slug using discover endpoint
+  // First try: https://api2.luma.com/discover/get-place-v2?slug=<slug>
+  // Or try: https://api2.luma.com/url?url=<slug>
+  const possibleEndpoints = [
+    `https://api2.luma.com/discover/get-place-v2?slug=${encodeURIComponent(slug)}`,
+    `https://api2.luma.com/url?url=${encodeURIComponent(slug)}`,
+  ];
+  
+  for (const endpoint of possibleEndpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "Accept": "application/json",
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Check if it's a place response
+        if (data.place?.api_id) {
+          console.log(`[luma] Found place API ID for ${cityName}: ${data.place.api_id}`);
+          return data.place.api_id;
+        }
+        // Check if url endpoint returned place data
+        if (data.kind === "place" && data.data?.place?.api_id) {
+          console.log(`[luma] Found place API ID for ${cityName}: ${data.data.place.api_id}`);
+          return data.data.place.api_id;
+        }
+      }
+    } catch (error) {
+      // Try next endpoint
+      continue;
+    }
+  }
+  
+  console.warn(`[luma] Could not find place API ID for: ${cityName}`);
+  return null;
+}
+
+/**
+ * Fetch events from a place using the place API ID
+ */
+async function getEventsByPlace(placeApiId: string, limit: number = 10): Promise<LumaEvent[]> {
+  const url = `https://api2.luma.com/discover/get-place-v2?discover_place_api_id=${encodeURIComponent(placeApiId)}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Accept": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      console.warn(`[luma] Failed to fetch place data: ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    const place = data.place;
+    
+    if (!place || !place.featured_event_api_ids || !Array.isArray(place.featured_event_api_ids)) {
+      console.warn(`[luma] No featured events found for place ${placeApiId}`);
+      return [];
+    }
+    
+    console.log(`[luma] Found ${place.featured_event_api_ids.length} featured events for place ${place.name || placeApiId}`);
+    
+    // Fetch individual event details for each featured event
+    const eventPromises = place.featured_event_api_ids
+      .slice(0, limit)
+      .map(async (eventApiId: string, index: number) => {
+        try {
+          const eventDetails = await getEventDetails(eventApiId);
+          if (eventDetails?.data?.event || eventDetails?.event) {
+            const event = eventDetails.data?.event || eventDetails.event;
+            return eventDataToLumaEvent(event, '', index);
+          }
+        } catch (error) {
+          console.warn(`[luma] Failed to fetch event ${eventApiId}:`, error);
+        }
+        return null;
+      });
+    
+    const events = await Promise.all(eventPromises);
+    return events.filter((e): e is LumaEvent => e !== null);
+  } catch (error) {
+    console.error(`[luma] Error fetching events by place ${placeApiId}:`, error);
+    return [];
+  }
+}
+
+/**
  * Search for events by place using Luma API
- * 
- * Since Luma doesn't support direct location search, we:
- * 1. Try searching the place name as a topic (some cities have topic pages)
- * 2. If that doesn't work, return a helpful message
- * 
- * Note: We could potentially search by topic and then filter by location
- * if we fetch individual event details, but that would be slow and hit rate limits.
+ * Uses the discover/get-place-v2 endpoint when available
  */
 async function searchByPlace(query: string, limit: number): Promise<LumaEvent[]> {
-  // Approach: Try searching the place name as a topic
+  // First, try to get the place API ID
+  const placeApiId = await getPlaceApiId(query);
+  
+  if (placeApiId) {
+    // Use the location API to get events
+    const events = await getEventsByPlace(placeApiId, limit);
+    if (events.length > 0) {
+      return events;
+    }
+  }
+  
+  // Fallback: Try searching the place name as a topic
   // Some cities might have topic/category pages (e.g., "san-francisco")
   const slug = normalizeToSlug(query);
   const urlEndpoint = `https://api2.luma.com/url?url=${encodeURIComponent(slug)}`;
   
-  console.log(`[luma] Searching place as topic: ${query} via ${urlEndpoint}`);
+  console.log(`[luma] Searching place as topic (fallback): ${query} via ${urlEndpoint}`);
   
   try {
     const response = await fetch(urlEndpoint, {
