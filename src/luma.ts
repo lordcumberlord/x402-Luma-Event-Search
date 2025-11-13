@@ -236,34 +236,13 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
   const event = eventData.event || eventData;
   const locationInfo = event.geo_address_info;
   
-  // Build location from structured fields - just use city name
-  // This avoids postal codes that might be in city_state and redundant region names
+  // Extract location - keep original logic for search/filtering
+  // We'll format it out of the display later
   let location: string | undefined;
-  if (locationInfo) {
-    // Just use the city name - clean and simple
-    if (locationInfo.geo_city) {
-      location = locationInfo.geo_city;
-    } else if (locationInfo.city_state) {
-      // Fallback to city_state if geo_city isn't available
-      // Try to extract just the city part (before comma if it exists)
-      // This removes postal codes like "C1416CLN" that might be at the start
-      const cityState = locationInfo.city_state;
-      // Split by comma and take the first part that looks like a city name
-      // Skip parts that look like postal codes (all caps, alphanumeric, short)
-      const parts = cityState.split(',').map(p => p.trim());
-      const cityPart = parts.find(part => {
-        // Skip if it looks like a postal code (all caps, short, alphanumeric)
-        if (part.length <= 10 && /^[A-Z0-9]+$/.test(part)) {
-          return false;
-        }
-        return part.length > 0;
-      });
-      location = cityPart || parts[0] || cityState;
-    }
-  }
-  
-  // If still no location, check if event has coordinate (at least we know it has a location)
-  if (!location && event.coordinate) {
+  if (locationInfo?.city_state) {
+    location = locationInfo.city_state;
+  } else if (event.coordinate) {
+    // Could geocode coordinates, but for now just note it has coordinates
     location = "Location available";
   }
   
@@ -769,12 +748,8 @@ export function formatEventsForTelegram(events: LumaEvent[], totalEvents?: numbe
     const url = event.url;
     
     // Build details section with description and attendee count
+    // Note: Location is not shown in response since it's obvious from the search query
     const details: string[] = [];
-    
-    // Add location if available
-    if (event.location) {
-      details.push(event.location);
-    }
     
     // Add date if available
     if (event.date) {
