@@ -1,6 +1,8 @@
-## dreams
+## x402 Luma Event Search Bot
 
-This project was scaffolded with `create-agent-kit` and ships with a ready-to-run agent app built on [`@lucid-dreams/agent-kit`](https://www.npmjs.com/package/@lucid-dreams/agent-kit).
+A Telegram bot that searches Luma.com for events by topic or location, powered by x402 payments.
+
+This project was forked from the dreams repo and adapted for Luma event search functionality.
 
 ### Quick start
 
