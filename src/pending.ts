@@ -21,6 +21,24 @@ export type TelegramCallbackData = {
   expiresAt: number;
 };
 
+export type SearchState = {
+  events: Array<{
+    id: string;
+    title: string;
+    url: string;
+    description?: string;
+    location?: string;
+    date?: string;
+    attendeeCount?: number;
+  }>;
+  topic: string;
+  location?: string;
+  offset: number; // Current offset (0, 5, 10, etc.)
+  expiresAt: number; // Expire after 1 hour
+};
+
 export const pendingDiscordCallbacks = new Map<string, DiscordCallbackData>();
 export const pendingTelegramCallbacks = new Map<string, TelegramCallbackData>();
+// Store search state per chatId for pagination
+export const searchState = new Map<number, SearchState>();
 

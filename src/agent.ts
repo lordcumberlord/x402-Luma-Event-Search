@@ -953,6 +953,13 @@ addEntrypoint({
         .optional()
         .default(10)
         .describe("Maximum number of events to return (default: 10, max: 20)."),
+      offset: z
+        .coerce.number()
+        .int({ message: "Offset must be a whole number." })
+        .min(0, { message: "Offset must be at least 0." })
+        .optional()
+        .default(0)
+        .describe("Offset for pagination (default: 0)."),
     }),
   price: process.env.ENTRYPOINT_PRICE || "0.05",
   output: z.object({
@@ -967,36 +974,67 @@ addEntrypoint({
         attendeeCount: z.number().optional(),
       })
     ),
+    allEvents: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        url: z.string().url(),
+        description: z.string().optional(),
+        location: z.string().optional(),
+        date: z.string().optional(),
+        attendeeCount: z.number().optional(),
+      })
+    ).optional(),
     formattedMessage: z.string().describe("Formatted message ready for Telegram display."),
+    totalEvents: z.number().optional(),
+    hasMore: z.boolean().optional(),
   }),
   async handler(ctx) {
-    const { topic, location, limit = 10 } = ctx.input;
+    const { topic, location, limit = 10, offset = 0 } = ctx.input;
 
     // Import Luma search function
     const { searchLumaEvents, formatEventsForTelegram } = await import("./luma");
 
     try {
-      // Search by topic first
+      // Search by topic first - get more events to allow for sorting and pagination
       const events = await searchLumaEvents({
         query: topic.trim(),
         searchType: "topic",
-        limit: location ? limit * 2 : limit, // Get more events if filtering by location
+        limit: location ? 50 : 30, // Get more events for sorting and pagination
       });
 
       // Filter by location if provided
       let filteredEvents = events;
       if (location) {
         filteredEvents = filterEventsByLocation(events, location);
-        // Limit to requested number after filtering
-        filteredEvents = filteredEvents.slice(0, limit);
       }
 
-      const formattedMessage = formatEventsForTelegram(filteredEvents);
+      // Sort by attendee count (descending), then by title for consistency
+      filteredEvents.sort((a, b) => {
+        const aCount = a.attendeeCount ?? 0;
+        const bCount = b.attendeeCount ?? 0;
+        if (bCount !== aCount) {
+          return bCount - aCount; // Descending by attendee count
+        }
+        // If same count, sort alphabetically by title
+        return (a.title || "").localeCompare(b.title || "");
+      });
+
+      // Get the page of events (5 per page)
+      const pageSize = 5;
+      const startIndex = offset;
+      const endIndex = startIndex + pageSize;
+      const paginatedEvents = filteredEvents.slice(startIndex, endIndex);
+
+      const formattedMessage = formatEventsForTelegram(paginatedEvents, filteredEvents.length, startIndex);
 
       return {
         output: {
-          events: filteredEvents,
+          events: paginatedEvents,
+          allEvents: filteredEvents, // Store all events for pagination
           formattedMessage,
+          totalEvents: filteredEvents.length,
+          hasMore: endIndex < filteredEvents.length,
         },
         model: "luma-search",
       };

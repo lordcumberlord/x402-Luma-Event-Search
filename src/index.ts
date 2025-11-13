@@ -526,6 +526,31 @@ async function handleTelegramCallback(req: Request): Promise<Response> {
       if (!messageText) {
         messageText = "No events found. Please try a different search query.";
       }
+
+      // Store search state for pagination
+      if (output?.events && Array.isArray(output.events)) {
+        const { searchState } = await import("./pending");
+        // Store all events (not just the current page) for pagination
+        const allEvents = (output.allEvents || output.events) as Array<{
+          id: string;
+          title: string;
+          url: string;
+          description?: string;
+          location?: string;
+          date?: string;
+          attendeeCount?: number;
+        }>;
+        
+        if (allEvents.length > 0) {
+          searchState.set(callbackData.chatId, {
+            events: allEvents,
+            topic: callbackData.topic!,
+            location: callbackData.location,
+            offset: 0, // Start at 0, will be updated when /more is called
+            expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+          });
+        }
+      }
     } else {
       // For summarise: process summary with cleaning
       let summary = (output?.summary || output?.text || "").trim();

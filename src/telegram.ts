@@ -1,7 +1,7 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { validateLookback } from "./lookback";
 import { PAYMENT_CALLBACK_EXPIRY_MS } from "./constants";
-import { pendingTelegramCallbacks } from "./pending";
+import { pendingTelegramCallbacks, searchState } from "./pending";
 import { addTelegramMessage, updateTelegramMessageReactions } from "./telegramStore";
 
 const DEFAULT_LOOKBACK_MINUTES = 60;
@@ -85,7 +85,9 @@ export function createTelegramBot(options: {
     await ctx.reply(
       "Hey! I'm the Luma Event Search Bot. Use /search_events to find events:\n\n" +
       "• /search_events on <topic> - Search events by topic (e.g., crypto, AI)\n" +
-      "• /search_events on <topic> in <city> - Search events by topic in a specific city\n\n" +
+      "• /search_events on <topic> in <city> - Search events by topic in a specific city\n" +
+      "• /more - Get the next 5 events from your last search\n\n" +
+      "Events are sorted by most attendees first. Each search returns up to 5 events.\n\n" +
       "Examples:\n" +
       "• /search_events on crypto\n" +
       "• /search_events on AI in London"
@@ -259,6 +261,42 @@ export function createTelegramBot(options: {
       paymentMessageId: paymentMessage.message_id,
       expiresAt: Date.now() + PAYMENT_CALLBACK_EXPIRY_MS,
     });
+  });
+
+  bot.command("more", async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId) {
+      await ctx.reply("❌ Could not determine chat id.");
+      return;
+    }
+
+    // Get the last search state for this chat
+    const state = searchState.get(chatId);
+    if (!state || state.expiresAt < Date.now()) {
+      await ctx.reply(
+        "❌ No recent search found. Please use /search_events first.\n\n" +
+        "Example: /search_events on crypto in Dubai"
+      );
+      return;
+    }
+
+    // Check if there are more events
+    const nextOffset = state.offset + 5;
+    if (nextOffset >= state.events.length) {
+      await ctx.reply("✅ You've seen all events from your last search. Try a new search!");
+      return;
+    }
+
+    // Get the next 5 events
+    const nextEvents = state.events.slice(nextOffset, nextOffset + 5);
+    const { formatEventsForTelegram } = await import("./luma");
+    const message = formatEventsForTelegram(nextEvents, state.events.length, nextOffset);
+
+    // Update the offset
+    state.offset = nextOffset;
+    state.expiresAt = Date.now() + 60 * 60 * 1000; // Extend expiry by 1 hour
+
+    await ctx.reply(message, { parse_mode: "Markdown" });
   });
 
   return bot;

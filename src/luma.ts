@@ -735,7 +735,7 @@ export async function searchLumaEvents(params: LumaSearchParams): Promise<LumaEv
 /**
  * Format events as a list of links for Telegram
  */
-export function formatEventsForTelegram(events: LumaEvent[]): string {
+export function formatEventsForTelegram(events: LumaEvent[], totalEvents?: number, startIndex: number = 0): string {
   if (events.length === 0) {
     return "No events found. Please try a different search query.";
   }
@@ -815,6 +815,11 @@ export function formatEventsForTelegram(events: LumaEvent[]): string {
     return line;
   });
   
-  return `Found ${events.length} event${events.length > 1 ? "s" : ""}:\n\n${lines.join("\n\n")}`;
+  let header = `Found ${events.length} event${events.length > 1 ? "s" : ""}`;
+  if (totalEvents !== undefined && totalEvents > events.length) {
+    header = `Showing ${startIndex + 1}-${startIndex + events.length} of ${totalEvents} events`;
+  }
+  
+  return `${header}:\n\n${lines.join("\n\n")}`;
 }
 
