@@ -910,8 +910,12 @@ const server = Bun.serve({
       }
       
       const entrypointUrl = `${agentBaseUrl}/entrypoints/${entrypointPath}/invoke`;
-      // Price is fixed at 0.10 USDC (100000 / 10^6) - always display as "0.10"
-      const price = "0.10";
+      // Normalize price display - ensure it shows as "0.10" not "0.010" or "0.01"
+      // The actual payment amount is 0.10 USDC (100000 / 10^6), so display should always be "0.10"
+      const rawPrice = process.env.ENTRYPOINT_PRICE || "0.10";
+      const priceNum = parseFloat(rawPrice);
+      // Ensure it displays as "0.10" - if it's 0.01 or 0.010, it should be 0.10
+      const price = priceNum >= 0.1 ? priceNum.toFixed(2) : "0.10";
       const currency = process.env.PAYMENT_CURRENCY || "USDC";
 
       // Ensure HTTPS origin
