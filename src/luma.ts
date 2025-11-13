@@ -144,6 +144,16 @@ async function getCalendarEvents(calendarSlug: string, calendarApiId: string, li
               if (item.url && !eventObj.url) {
                 eventObj.url = item.url;
               }
+              // Extract guest_count from featured_item level (this is the attendee count!)
+              if (item.guest_count !== undefined) {
+                eventObj.guest_count = item.guest_count;
+                eventObj.num_rsvps = item.guest_count; // Also set as num_rsvps for compatibility
+              }
+              // Also check ticket_count as a fallback
+              if (item.ticket_count !== undefined && eventObj.guest_count === undefined) {
+                eventObj.guest_count = item.ticket_count;
+                eventObj.num_rsvps = item.ticket_count;
+              }
               // Also preserve any item-level fields that might have description/attendee info
               if (item.description && !eventObj.description) {
                 eventObj.description = item.description;
@@ -257,7 +267,9 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
   const description = event.description_short || event.description || event.summary;
   
   // Extract attendee count - try various possible field names
+  // guest_count from featured_items is the most reliable source
   const attendeeCount = 
+    event.guest_count ||
     event.num_rsvps ||
     event.num_attendees ||
     event.attendee_count ||
@@ -266,6 +278,7 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
     event.going_count ||
     event.attendees_count ||
     event.num_going ||
+    event.ticket_count ||
     (typeof event.going === 'number' ? event.going : undefined) ||
     (Array.isArray(event.rsvps) ? event.rsvps.length : undefined) ||
     (Array.isArray(event.going) ? event.going.length : undefined);
@@ -405,7 +418,9 @@ async function searchByTopic(query: string, limit: number): Promise<LumaEvent[]>
                     }
                     
                     // Update attendee count - try all possible field names
+                    // Note: guest_count is usually in featured_items, not individual event details
                     const newAttendeeCount = 
+                      detailedEvent.guest_count ||
                       detailedEvent.num_rsvps ||
                       detailedEvent.num_attendees ||
                       detailedEvent.attendee_count ||
@@ -416,6 +431,7 @@ async function searchByTopic(query: string, limit: number): Promise<LumaEvent[]>
                       detailedEvent.num_going ||
                       detailedEvent.rsvps_count ||
                       detailedEvent.going_users_count ||
+                      detailedEvent.ticket_count ||
                       (typeof detailedEvent.going === 'number' ? detailedEvent.going : undefined) ||
                       (Array.isArray(detailedEvent.rsvps) ? detailedEvent.rsvps.length : undefined) ||
                       (Array.isArray(detailedEvent.going) ? detailedEvent.going.length : undefined) ||
