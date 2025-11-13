@@ -1900,6 +1900,7 @@ const server = Bun.serve({
             resource: selectedPaymentRequirements.resource,
             payTo: selectedPaymentRequirements.payTo,
             maxAmountRequired: selectedPaymentRequirements.maxAmountRequired,
+            facilitatorUrl,
           });
           settlement = await facilitatorClient.settle(
             decodedPayment,
@@ -1907,6 +1908,29 @@ const server = Bun.serve({
           );
         } catch (error: any) {
           console.error("[payment] Facilitator settlement error", error);
+          
+          // Try to manually fetch the facilitator response to see the actual error
+          try {
+            const settleUrl = `${facilitatorUrl}/settle`;
+            console.log(`[payment] Manually checking facilitator response at: ${settleUrl}`);
+            const manualResponse = await fetch(settleUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                payment: decodedPayment,
+                paymentRequirements: selectedPaymentRequirements,
+              }),
+            });
+            const manualResponseText = await manualResponse.text();
+            console.error("[payment] Facilitator manual response:", {
+              status: manualResponse.status,
+              statusText: manualResponse.statusText,
+              body: manualResponseText,
+            });
+          } catch (manualError) {
+            console.error("[payment] Failed to manually check facilitator:", manualError);
+          }
+          
           console.error("[payment] Settlement error details:", {
             message: error?.message,
             name: error?.name,
