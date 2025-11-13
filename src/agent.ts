@@ -934,18 +934,17 @@ addEntrypoint({
 addEntrypoint({
   key: "search luma events",
   description:
-    "Search for events on Luma.com by place or topic and return relevant event links.",
+    "Search for events on Luma.com by topic and optionally filter by location.",
   input: z
     .object({
-      query: z
+      topic: z
         .string()
-        .min(1, { message: "Provide a search query." })
-        .describe("The search query - either a place name or topic."),
-      searchType: z
-        .enum(["place", "topic"], {
-          message: "Search type must be either 'place' or 'topic'.",
-        })
-        .describe("Type of search: 'place' for location-based or 'topic' for subject-based."),
+        .min(1, { message: "Provide a topic." })
+        .describe("The topic to search for (e.g., crypto, AI, tech)."),
+      location: z
+        .string()
+        .optional()
+        .describe("Optional city name to filter events by location (e.g., London, San Francisco)."),
       limit: z
         .coerce.number()
         .int({ message: "Limit must be a whole number." })
@@ -970,23 +969,32 @@ addEntrypoint({
     formattedMessage: z.string().describe("Formatted message ready for Telegram display."),
   }),
   async handler(ctx) {
-    const { query, searchType, limit = 10 } = ctx.input;
+    const { topic, location, limit = 10 } = ctx.input;
 
     // Import Luma search function
     const { searchLumaEvents, formatEventsForTelegram } = await import("./luma");
 
     try {
+      // Search by topic first
       const events = await searchLumaEvents({
-        query: query.trim(),
-        searchType,
-        limit,
+        query: topic.trim(),
+        searchType: "topic",
+        limit: location ? limit * 2 : limit, // Get more events if filtering by location
       });
 
-      const formattedMessage = formatEventsForTelegram(events);
+      // Filter by location if provided
+      let filteredEvents = events;
+      if (location) {
+        filteredEvents = filterEventsByLocation(events, location);
+        // Limit to requested number after filtering
+        filteredEvents = filteredEvents.slice(0, limit);
+      }
+
+      const formattedMessage = formatEventsForTelegram(filteredEvents);
 
       return {
         output: {
-          events,
+          events: filteredEvents,
           formattedMessage,
         },
         model: "luma-search",
@@ -1003,6 +1011,37 @@ addEntrypoint({
     }
   },
 });
+
+/**
+ * Filter events by location using fuzzy matching
+ */
+function filterEventsByLocation(events: Array<{ location?: string }>, location: string): Array<{ location?: string }> {
+  const normalizedLocation = location.toLowerCase().trim();
+  
+  return events.filter(event => {
+    if (!event.location) return false;
+    
+    const eventLocation = event.location.toLowerCase();
+    
+    // Exact match
+    if (eventLocation === normalizedLocation) return true;
+    
+    // Check if location contains the city name
+    if (eventLocation.includes(normalizedLocation)) return true;
+    
+    // Check if city name contains location (for cases like "San Francisco, CA")
+    if (normalizedLocation.includes(eventLocation.split(',')[0].trim())) return true;
+    
+    // Check for common variations (e.g., "SF" for "San Francisco")
+    const locationWords = normalizedLocation.split(/\s+/);
+    const eventWords = eventLocation.split(/[,\s]+/);
+    
+    // Check if all location words appear in event location
+    return locationWords.every(word => 
+      eventWords.some(eventWord => eventWord.includes(word) || word.includes(eventWord))
+    );
+  });
+}
 
 export { app };
 

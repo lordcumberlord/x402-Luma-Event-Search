@@ -85,8 +85,10 @@ export function createTelegramBot(options: {
     await ctx.reply(
       "Hey! I'm the Luma Event Search Bot. Use /search_events to find events:\n\n" +
       "• /search_events on <topic> - Search events by topic (e.g., crypto, AI)\n" +
-      "• /search_events in <place> - Try searching by location (limited support)\n\n" +
-      "Note: Location search works best for cities with topic pages. For best results, use topic search."
+      "• /search_events on <topic> in <city> - Search events by topic in a specific city\n\n" +
+      "Examples:\n" +
+      "• /search_events on crypto\n" +
+      "• /search_events on AI in London"
     );
   });
 
@@ -143,10 +145,10 @@ export function createTelegramBot(options: {
   });
 
   function parseSearchEventsCommand(text: string | undefined): 
-    | { query: string; searchType: "place" | "topic" } 
+    | { topic: string; location?: string } 
     | { error: string } {
     if (!text) {
-      return { error: "Usage: /search_events in <place> or /search_events on <topic>" };
+      return { error: "Usage: /search_events on <topic> [in <city>]" };
     }
 
     const trimmed = text.trim();
@@ -154,37 +156,46 @@ export function createTelegramBot(options: {
 
     // Check for /search_events command
     if (parts.length < 3) {
-      return { error: "Usage: /search_events in <place> or /search_events on <topic>" };
+      return { error: "Usage: /search_events on <topic> [in <city>]" };
     }
 
-    // Find "in" or "on" keyword
-    let searchType: "place" | "topic" | null = null;
-    let queryStartIndex = -1;
+    // Find "on" keyword (required)
+    let onIndex = -1;
+    let inIndex = -1;
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i].toLowerCase();
-      if (part === "in") {
-        searchType = "place";
-        queryStartIndex = i + 1;
-        break;
-      } else if (part === "on") {
-        searchType = "topic";
-        queryStartIndex = i + 1;
-        break;
+      if (part === "on" && onIndex === -1) {
+        onIndex = i;
+      } else if (part === "in" && inIndex === -1) {
+        inIndex = i;
       }
     }
 
-    if (!searchType || queryStartIndex === -1 || queryStartIndex >= parts.length) {
-      return { error: "Usage: /search_events in <place> or /search_events on <topic>" };
+    if (onIndex === -1) {
+      return { error: "Usage: /search_events on <topic> [in <city>]" };
     }
 
-    const query = parts.slice(queryStartIndex).join(" ").trim();
+    // Extract topic (everything after "on" until "in" or end)
+    const topicEndIndex = inIndex !== -1 ? inIndex : parts.length;
+    const topicParts = parts.slice(onIndex + 1, topicEndIndex);
+    const topic = topicParts.join(" ").trim();
 
-    if (!query) {
-      return { error: "Please provide a search query. Usage: /search_events in <place> or /search_events on <topic>" };
+    if (!topic) {
+      return { error: "Please provide a topic. Usage: /search_events on <topic> [in <city>]" };
     }
 
-    return { query, searchType };
+    // Extract location (everything after "in" if present)
+    let location: string | undefined;
+    if (inIndex !== -1 && inIndex + 1 < parts.length) {
+      const locationParts = parts.slice(inIndex + 1);
+      location = locationParts.join(" ").trim();
+      if (!location) {
+        return { error: "Please provide a city name after 'in'. Usage: /search_events on <topic> in <city>" };
+      }
+    }
+
+    return { topic, location };
   }
 
   bot.command("search_events", async (ctx) => {
@@ -195,13 +206,13 @@ export function createTelegramBot(options: {
         `❌ ${parseResult.error}\n\n` +
         `Examples:\n` +
         `• /search_events on crypto\n` +
-        `• /search_events on AI\n` +
-        `• /search_events in San Francisco (limited support)`
+        `• /search_events on AI in London\n` +
+        `• /search_events on crypto in San Francisco`
       );
       return;
     }
 
-    const { query, searchType } = parseResult;
+    const { topic, location } = parseResult;
     const chatId = ctx.chat?.id;
 
     if (!chatId) {
@@ -216,18 +227,22 @@ export function createTelegramBot(options: {
     url.searchParams.set("source", "telegram");
     url.searchParams.set("telegram_callback", callbackParam);
     url.searchParams.set("chatId", String(chatId));
-    url.searchParams.set("query", query);
-    url.searchParams.set("searchType", searchType);
+    url.searchParams.set("topic", topic);
+    if (location) {
+      url.searchParams.set("location", location);
+    }
 
     const keyboard = new InlineKeyboard().url(
       "Pay $0.05 via x402",
       url.toString()
     );
 
-    const searchTypeLabel = searchType === "place" ? "location" : "topic";
+    const searchDescription = location 
+      ? `Searching for *${topic}* events in *${location}*`
+      : `Searching for *${topic}* events`;
+
     const paymentMessage = await ctx.reply(
-      `🪙 *Payment Required*\n\n` +
-        `Searching for events by ${searchTypeLabel}: *${query}*`,
+      `🪙 *Payment Required*\n\n${searchDescription}`,
       {
         parse_mode: "Markdown",
         reply_markup: keyboard,
@@ -239,8 +254,8 @@ export function createTelegramBot(options: {
       threadId: ctx.message && "message_thread_id" in ctx.message ? ctx.message.message_thread_id : undefined,
       messageId: ctx.message?.message_id,
       username: ctx.from?.username,
-      query,
-      searchType,
+      topic,
+      location,
       paymentMessageId: paymentMessage.message_id,
       expiresAt: Date.now() + PAYMENT_CALLBACK_EXPIRY_MS,
     });

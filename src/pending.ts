@@ -16,8 +16,8 @@ export type TelegramCallbackData = {
   // For summarise command
   lookbackMinutes?: number;
   // For search_events command
-  query?: string;
-  searchType?: "place" | "topic";
+  topic?: string;
+  location?: string;
   expiresAt: number;
 };
 

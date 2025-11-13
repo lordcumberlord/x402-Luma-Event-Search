@@ -515,7 +515,7 @@ async function handleTelegramCallback(req: Request): Promise<Response> {
     const output = result?.output || result;
     
     // Determine if this is a search_events callback or summarise callback
-    const isSearchCallback = callbackData.query !== undefined && callbackData.searchType !== undefined;
+    const isSearchCallback = callbackData.topic !== undefined;
     
     let messageText: string;
     
@@ -581,7 +581,7 @@ async function handleTelegramCallback(req: Request): Promise<Response> {
         (async () => {
           const sendUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
           // Use Markdown parse mode for search results (contains links) or summaries
-          const isSearchCallback = callbackData.query !== undefined && callbackData.searchType !== undefined;
+          const isSearchCallback = callbackData.topic !== undefined;
           const sendBody: any = {
             chat_id: callbackData.chatId,
             text: messageText,
@@ -630,7 +630,7 @@ async function handleTelegramCallback(req: Request): Promise<Response> {
       // Fire off a background task to retry if needed
       setTimeout(async () => {
         try {
-          const isSearchCallback = callbackData.query !== undefined && callbackData.searchType !== undefined;
+          const isSearchCallback = callbackData.topic !== undefined;
           const retryBody: any = {
             chat_id: callbackData.chatId,
             text: messageText,
@@ -785,8 +785,8 @@ const server = Bun.serve({
       const chatId = url.searchParams.get("chatId");
       const serverId = url.searchParams.get("serverId");
       const lookbackMinutesParam = url.searchParams.get("lookbackMinutes");
-      const query = url.searchParams.get("query");
-      const searchType = url.searchParams.get("searchType");
+      const topic = url.searchParams.get("topic");
+      const location = url.searchParams.get("location");
       const discordCallback = url.searchParams.get("discord_callback");
       const telegramCallback = url.searchParams.get("telegram_callback");
 
@@ -794,7 +794,7 @@ const server = Bun.serve({
       const primaryId = usingTelegram ? chatId : channelId;
       
       // Determine if this is a search_events request or summarise request
-      const isSearchRequest = query !== null && searchType !== null;
+      const isSearchRequest = topic !== null;
 
       // Validate required parameters based on request type
       if (!primaryId) {
@@ -805,8 +805,8 @@ const server = Bun.serve({
         return Response.json({ error: "Missing required parameters (lookbackMinutes for summarise)" }, { status: 400 });
       }
       
-      if (isSearchRequest && (!query || !searchType)) {
-        return Response.json({ error: "Missing required parameters (query and searchType for search)" }, { status: 400 });
+      if (isSearchRequest && !topic) {
+        return Response.json({ error: "Missing required parameters (topic for search)" }, { status: 400 });
       }
 
       let lookbackMinutes: number | undefined;
@@ -829,7 +829,7 @@ const server = Bun.serve({
       if (isSearchRequest) {
         entrypointPath = "search%20luma%20events";
         heading = "🪙 Search Luma Events";
-        entityLabel = "Search Query";
+        entityLabel = location ? "Topic & Location" : "Topic";
         postPaymentPrompt = "After payment, your event search results will automatically appear in Telegram.";
       } else {
         entrypointPath = usingTelegram
@@ -858,8 +858,8 @@ const server = Bun.serve({
         chatId,
         serverId,
         lookbackMinutes,
-        query,
-        searchType,
+        topic,
+        location,
         entrypointUrl,
         discordCallback,
         telegramCallback,
@@ -940,7 +940,7 @@ const server = Bun.serve({
     <div class="info">
       <p><strong>Price:</strong> $${price} ${currency}</p>
       ${isSearchRequest 
-        ? `<p><strong>Search Query:</strong> ${query}</p><p><strong>Search Type:</strong> ${searchType === "place" ? "Location" : "Topic"}</p>`
+        ? `<p><strong>Topic:</strong> ${topic}</p>${location ? `<p><strong>Location:</strong> ${location}</p>` : ''}`
         : `<p><strong>${entityLabel}:</strong> ${primaryId}</p><p><strong>Lookback:</strong> ${lookbackMinutes} minutes</p>`
       }
     </div>
@@ -1114,14 +1114,14 @@ const server = Bun.serve({
         status.innerHTML = '<p>🪙 Processing payment (gasless via facilitator)...</p>';
         
         // Determine request type and build input accordingly
-        const isSearchRequest = cfg.query && cfg.searchType;
+        const isSearchRequest = cfg.topic;
         let requestInput;
         
         if (isSearchRequest) {
           // Search events request
           requestInput = {
-            query: cfg.query,
-            searchType: cfg.searchType,
+            topic: cfg.topic,
+            location: cfg.location || undefined,
             limit: 10
           };
         } else if (cfg.source === 'telegram') {
