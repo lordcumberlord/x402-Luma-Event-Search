@@ -1616,21 +1616,19 @@ const server = Bun.serve({
     }
 
     // Agent app routes - intercept entrypoint responses for Discord callbacks
-    // Normalize pathname to handle double slashes
-    const normalizedPathname = url.pathname.replace(/\/+/g, '/');
-    if (normalizedPathname.includes("/entrypoints/") && normalizedPathname.includes("/invoke")) {
+    if (url.pathname.includes("/entrypoints/") && url.pathname.includes("/invoke")) {
       const isSummariseEndpoint =
-        normalizedPathname.includes("summarise%20chat") ||
-        normalizedPathname.includes("summarise chat") ||
-        normalizedPathname.includes("summarise%20telegram%20chat") ||
-        normalizedPathname.includes("summarise telegram chat");
+        url.pathname.includes("summarise%20chat") ||
+        url.pathname.includes("summarise chat") ||
+        url.pathname.includes("summarise%20telegram%20chat") ||
+        url.pathname.includes("summarise telegram chat");
       const isSearchEndpoint =
-        normalizedPathname.includes("search%20luma%20events") ||
-        normalizedPathname.includes("search luma events");
+        url.pathname.includes("search%20luma%20events") ||
+        url.pathname.includes("search luma events");
       
       if (isSummariseEndpoint || isSearchEndpoint) {
         const hasPaymentHeader = req.headers.get("X-PAYMENT");
-        console.log(`[payment] Entrypoint called: ${normalizedPathname}`);
+        console.log(`[payment] Entrypoint called: ${url.pathname}`);
 
         let sourceLabel: string;
         if (isSearchEndpoint) {
