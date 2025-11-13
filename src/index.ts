@@ -902,15 +902,16 @@ const server = Bun.serve({
       max-width: 600px; 
       margin: 50px auto; 
       padding: 20px;
-      background: linear-gradient(135deg, #0f172a, #111c38 40%, #010409) fixed;
+      background: linear-gradient(135deg, #000000 0%, #1a0033 25%, #4b0082 50%, #8b00ff 75%, #ff1493 100%) fixed;
       color: #e2e8f0;
+      min-height: 100vh;
     }
     .container { 
-      background: linear-gradient(145deg, rgba(17, 24, 39, 0.78), rgba(15, 23, 42, 0.94));
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: linear-gradient(145deg, rgba(0, 0, 0, 0.85), rgba(26, 0, 51, 0.9));
+      border: 1px solid rgba(255, 20, 147, 0.3);
       padding: 30px; 
       border-radius: 16px;
-      box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
+      box-shadow: 0 24px 48px rgba(139, 0, 255, 0.4), 0 0 60px rgba(255, 20, 147, 0.2);
       backdrop-filter: blur(14px);
     }
     .logo {
@@ -921,24 +922,26 @@ const server = Bun.serve({
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
+      filter: drop-shadow(0 0 20px rgba(255, 20, 147, 0.5));
     }
     h1 { 
-      color: #e2e8f0; 
+      color: #ffffff; 
       margin-top: 0;
       text-align: center;
       font-size: 1.75rem;
+      text-shadow: 0 0 10px rgba(255, 20, 147, 0.5);
     }
     .info { 
-      background: linear-gradient(160deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.88));
-      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: linear-gradient(160deg, rgba(75, 0, 130, 0.4), rgba(26, 0, 51, 0.6));
+      border: 1px solid rgba(255, 20, 147, 0.25);
       padding: 15px; 
       border-radius: 8px; 
       margin: 20px 0;
-      color: #cbd5f5;
+      color: #f0e6ff;
     }
     .button { 
-      background: linear-gradient(120deg, #2563eb, #1d4ed8);
-      color: #f8fafc;
+      background: linear-gradient(120deg, #ff1493, #8b00ff);
+      color: #ffffff;
       padding: 12px 24px; 
       border: none; 
       border-radius: 6px; 
@@ -947,14 +950,16 @@ const server = Bun.serve({
       margin-top: 20px;
       width: 100%;
       font-weight: 600;
-      box-shadow: 0 12px 32px rgba(37, 99, 235, 0.38);
+      box-shadow: 0 12px 32px rgba(255, 20, 147, 0.5), 0 0 20px rgba(139, 0, 255, 0.3);
+      transition: all 0.3s ease;
     }
     .button:hover { 
-      background: linear-gradient(120deg, #1d4ed8, #1e40af);
-      box-shadow: 0 18px 28px rgba(37, 99, 235, 0.45);
+      background: linear-gradient(120deg, #ff69b4, #9d4edd);
+      box-shadow: 0 18px 40px rgba(255, 20, 147, 0.6), 0 0 30px rgba(139, 0, 255, 0.4);
+      transform: translateY(-2px);
     }
     #status {
-      color: #cbd5f5;
+      color: #f0e6ff;
     }
   </style>
 </head>
