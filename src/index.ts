@@ -667,6 +667,9 @@ const server = Bun.serve({
   port,
   async fetch(req) {
     const url = new URL(req.url);
+    
+    // Normalize pathname to remove any double slashes
+    url.pathname = url.pathname.replace(/\/+/g, '/');
 
     // Health checks
     if (url.pathname === "/" || url.pathname === "/health" || url.pathname === "/healthz") {
