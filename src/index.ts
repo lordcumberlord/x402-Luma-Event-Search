@@ -875,7 +875,7 @@ const server = Bun.serve({
 
       // Ensure HTTPS origin
       const origin = url.origin.replace(/^http:/, "https:");
-      const logoUrl = `${origin}/assets/logo.png`;
+      const logoUrl = `${origin}/assets/searcher.png`;
 
       const pageConfig = {
         source,
@@ -1406,7 +1406,7 @@ const server = Bun.serve({
     if (url.pathname === "/download" && req.method === "GET") {
       // Ensure HTTPS origin
       const origin = url.origin.replace(/^http:/, "https:");
-      const ogImageUrl = `${origin}/assets/logo.png`;
+      const ogImageUrl = `${origin}/assets/searcher.png`;
       const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || "LumaEventSearchBot";
       return new Response(`<!DOCTYPE html>
 <html lang="en">
