@@ -83,16 +83,14 @@ export function createTelegramBot(options: {
 
   bot.command("start", async (ctx) => {
     await ctx.reply(
-      "Hey! I'm the Luma Event Search Bot. Use /search_events to find events:\n\n" +
-      "• /search_events on <topic> - Search events by topic (e.g., crypto, AI)\n" +
-      "• /search_events in <place> - Search events by city (e.g., London, Dubai)\n" +
-      "• /search_events on <topic> in <place> - Search events by topic in a specific city\n\n" +
+      "Hey! I'm the Luma SearchBot.\n\n" +
+      "Use /search_events to find events in your chosen city:\n\n" +
+      "• /search_events on <topic> in <place>\n\n" +
       "Examples:\n" +
-      "• /search_events on crypto\n" +
-      "• /search_events in London\n" +
-      "• /search_events on AI in London\n\n" +
-      "You will be provided with up to 5 events in your given search.\n\n" +
-      "• /more - receive 5 more"
+      "• /search_events on AI in London\n" +
+      "• /search_events on crypto in Dubai\n\n" +
+      "You will be provided with up to 5 events.\n\n" +
+      "• /more - to receive 5 more"
     );
   });
 
@@ -209,9 +207,8 @@ export function createTelegramBot(options: {
       await ctx.reply(
         `❌ ${parseResult.error}\n\n` +
         `Examples:\n` +
-        `• /search_events on crypto\n` +
         `• /search_events on AI in London\n` +
-        `• /search_events on crypto in San Francisco`
+        `• /search_events on crypto in Dubai`
       );
       return;
     }
