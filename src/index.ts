@@ -1423,9 +1423,9 @@ const server = Bun.serve({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Luma Event Search Bot</title>
-  <meta name="description" content="Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity for $0.05 via x402.">
+  <meta name="description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.05 via x402.">
   <meta property="og:title" content="Luma Event Search Bot">
-  <meta property="og:description" content="Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity for $0.05 via x402.">
+  <meta property="og:description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.05 via x402.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="${origin}/download">
   <meta property="og:image" content="${ogImageUrl}">
@@ -1434,7 +1434,7 @@ const server = Bun.serve({
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Luma Event Search Bot">
-  <meta name="twitter:description" content="Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity for $0.05 via x402.">
+  <meta name="twitter:description" content="Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity for $0.05 via x402.">
   <meta name="twitter:image" content="${ogImageUrl}">
   <style>
     :root {
@@ -1632,14 +1632,14 @@ const server = Bun.serve({
         <img src="${ogImageUrl}" alt="Luma Event Search Bot Logo">
       </div>
       <h1>Luma Event Search Bot</h1>
-      <p class="lead">Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity, then use <code>/more</code> to see the next batch.</p>
+      <p class="lead">Search for events on Luma.com by topic and location. Get up to 5 events sorted by popularity, then use <code>/more</code> to see the next batch.</p>
     </header>
 
     <section>
       <h2>How It Works</h2>
       <ol class="steps">
         <li>Install the bot into your Telegram chat.</li>
-        <li>Use <code>/search_events on &lt;topic&gt;</code> or <code>/search_events in &lt;city&gt;</code> to find events.</li>
+        <li>Use <code>/search_events on &lt;topic&gt; in &lt;city&gt;</code> to find events.</li>
         <li>Pay securely via x402 ($0.05), then receive up to 5 events sorted by most attendees right in your chat.</li>
       </ol>
     </section>
