@@ -85,12 +85,14 @@ export function createTelegramBot(options: {
     await ctx.reply(
       "Hey! I'm the Luma Event Search Bot. Use /search_events to find events:\n\n" +
       "• /search_events on <topic> - Search events by topic (e.g., crypto, AI)\n" +
-      "• /search_events on <topic> in <city> - Search events by topic in a specific city\n" +
-      "• /more - Get the next 5 events from your last search\n\n" +
-      "Events are sorted by most attendees first. Each search returns up to 5 events.\n\n" +
+      "• /search_events in <place> - Search events by city (e.g., London, Dubai)\n" +
+      "• /search_events on <topic> in <place> - Search events by topic in a specific city\n\n" +
       "Examples:\n" +
       "• /search_events on crypto\n" +
-      "• /search_events on AI in London"
+      "• /search_events in London\n" +
+      "• /search_events on AI in London\n\n" +
+      "You will be provided with up to 5 events in your given search.\n\n" +
+      "• /more - receive 5 more"
     );
   });
 
