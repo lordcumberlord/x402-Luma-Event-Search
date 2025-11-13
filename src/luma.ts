@@ -241,7 +241,10 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
     event.registered_count ||
     event.going_count ||
     event.attendees_count ||
-    (typeof event.num_going === 'number' ? event.num_going : undefined);
+    event.num_going ||
+    (typeof event.going === 'number' ? event.going : undefined) ||
+    (Array.isArray(event.rsvps) ? event.rsvps.length : undefined) ||
+    (Array.isArray(event.going) ? event.going.length : undefined);
   
   return {
     id: eventApiId || `event-${index}`,
@@ -249,7 +252,7 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
     url: fullUrl,
     description: description,
     location: location,
-    date: event.start_at || event.startAt || event.date,
+    date: event.start_at || event.startAt || event.date || event.start_time,
     eventApiId: eventApiId,
     attendeeCount: attendeeCount,
   };
@@ -330,33 +333,62 @@ async function searchByTopic(query: string, limit: number): Promise<LumaEvent[]>
             calendarEvents.map(async (eventData, idx) => {
               const event = eventDataToLumaEvent(eventData, calendar.calendar.slug, idx);
               
-              // If description or attendeeCount is missing, try to fetch individual event details
-              if ((!event.description || event.attendeeCount === undefined) && event.eventApiId) {
+              // Always try to fetch individual event details to get complete information
+              if (event.eventApiId) {
                 try {
                   const details = await getEventDetails(event.eventApiId);
                   if (details?.data?.event || details?.event) {
                     const detailedEvent = details.data?.event || details.event;
                     
-                    // Fill in missing description
-                    if (!event.description) {
-                      event.description = detailedEvent.description_short || detailedEvent.description || detailedEvent.summary;
+                    // Log available fields for debugging
+                    if (idx === 0) {
+                      console.log(`[luma] Sample event detail fields:`, Object.keys(detailedEvent));
+                      console.log(`[luma] Sample attendee fields:`, {
+                        num_rsvps: detailedEvent.num_rsvps,
+                        num_attendees: detailedEvent.num_attendees,
+                        attendee_count: detailedEvent.attendee_count,
+                        rsvp_count: detailedEvent.rsvp_count,
+                        registered_count: detailedEvent.registered_count,
+                        going_count: detailedEvent.going_count,
+                        attendees_count: detailedEvent.attendees_count,
+                        num_going: detailedEvent.num_going,
+                        going: detailedEvent.going,
+                        rsvps: detailedEvent.rsvps,
+                      });
                     }
                     
-                    // Fill in missing attendee count
-                    if (event.attendeeCount === undefined) {
-                      event.attendeeCount = 
-                        detailedEvent.num_rsvps ||
-                        detailedEvent.num_attendees ||
-                        detailedEvent.attendee_count ||
-                        detailedEvent.rsvp_count ||
-                        detailedEvent.registered_count ||
-                        detailedEvent.going_count ||
-                        detailedEvent.attendees_count ||
-                        (typeof detailedEvent.num_going === 'number' ? detailedEvent.num_going : undefined);
+                    // Update description if we have a better one
+                    const newDescription = detailedEvent.description_short || detailedEvent.description || detailedEvent.summary;
+                    if (newDescription && (!event.description || newDescription.length > event.description.length)) {
+                      event.description = newDescription;
+                    }
+                    
+                    // Update attendee count - try all possible field names
+                    const newAttendeeCount = 
+                      detailedEvent.num_rsvps ||
+                      detailedEvent.num_attendees ||
+                      detailedEvent.attendee_count ||
+                      detailedEvent.rsvp_count ||
+                      detailedEvent.registered_count ||
+                      detailedEvent.going_count ||
+                      detailedEvent.attendees_count ||
+                      detailedEvent.num_going ||
+                      (typeof detailedEvent.going === 'number' ? detailedEvent.going : undefined) ||
+                      (Array.isArray(detailedEvent.rsvps) ? detailedEvent.rsvps.length : undefined) ||
+                      (Array.isArray(detailedEvent.going) ? detailedEvent.going.length : undefined);
+                    
+                    if (newAttendeeCount !== undefined) {
+                      event.attendeeCount = newAttendeeCount;
+                    }
+                    
+                    // Update date if we have a better one
+                    const newDate = detailedEvent.start_at || detailedEvent.startAt || detailedEvent.date || detailedEvent.start_time;
+                    if (newDate && !event.date) {
+                      event.date = newDate;
                     }
                   }
                 } catch (error) {
-                  // Silently fail - we'll just use what we have
+                  // Log error but continue with what we have
                   console.warn(`[luma] Failed to fetch details for event ${event.eventApiId}:`, error);
                 }
               }
@@ -555,9 +587,30 @@ export function formatEventsForTelegram(events: LumaEvent[]): string {
       details.push(event.location);
     }
     
+    // Add date if available
+    if (event.date) {
+      try {
+        const dateObj = new Date(event.date);
+        if (!isNaN(dateObj.getTime())) {
+          // Format as "Jan 15, 2025" or "Jan 15" if current year
+          const now = new Date();
+          const isCurrentYear = dateObj.getFullYear() === now.getFullYear();
+          const dateStr = isCurrentYear
+            ? dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          details.push(dateStr);
+        }
+      } catch (e) {
+        // If date parsing fails, try to use as-is if it's a string
+        if (typeof event.date === 'string') {
+          details.push(event.date);
+        }
+      }
+    }
+    
     // Add attendee count if available
     if (event.attendeeCount !== undefined && event.attendeeCount > 0) {
-      details.push(`${event.attendeeCount} ${event.attendeeCount === 1 ? 'person' : 'people'} registered`);
+      details.push(`${event.attendeeCount} ${event.attendeeCount === 1 ? 'person' : 'people'} going`);
     }
     
     // Add description (1-2 lines, truncated if too long)
