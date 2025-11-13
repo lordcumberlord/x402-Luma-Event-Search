@@ -1725,7 +1725,7 @@ const server = Bun.serve({
       <ol class="steps">
         <li>Install the bot into your Telegram chat.</li>
         <li>Use <code>/search_events on &lt;topic&gt; in &lt;city&gt;</code> to find events.</li>
-        <li>Pay securely via x402 ($0.05), then receive up to 5 events sorted by most attendees right in your chat.</li>
+        <li>Pay securely via x402 ($0.10), then receive up to 5 events sorted by most attendees right in your chat.</li>
       </ol>
     </section>
 
