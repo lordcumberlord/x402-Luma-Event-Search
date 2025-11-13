@@ -246,12 +246,24 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
     } else if (locationInfo.city_state) {
       // Fallback to city_state if geo_city isn't available
       // Try to extract just the city part (before comma if it exists)
+      // This removes postal codes like "C1416CLN" that might be at the start
       const cityState = locationInfo.city_state;
-      const cityPart = cityState.split(',')[0].trim();
-      location = cityPart || cityState;
+      // Split by comma and take the first part that looks like a city name
+      // Skip parts that look like postal codes (all caps, alphanumeric, short)
+      const parts = cityState.split(',').map(p => p.trim());
+      const cityPart = parts.find(part => {
+        // Skip if it looks like a postal code (all caps, short, alphanumeric)
+        if (part.length <= 10 && /^[A-Z0-9]+$/.test(part)) {
+          return false;
+        }
+        return part.length > 0;
+      });
+      location = cityPart || parts[0] || cityState;
     }
-  } else if (event.coordinate) {
-    // Could geocode coordinates, but for now just note it has coordinates
+  }
+  
+  // If still no location, check if event has coordinate (at least we know it has a location)
+  if (!location && event.coordinate) {
     location = "Location available";
   }
   
