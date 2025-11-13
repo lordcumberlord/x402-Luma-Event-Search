@@ -22,6 +22,7 @@ export type LumaEvent = {
   date?: string;
   calendarName?: string;
   eventApiId?: string; // For fetching individual event details if needed
+  attendeeCount?: number; // Number of people registered/attending
 };
 
 type LumaCalendar = {
@@ -228,14 +229,29 @@ function eventDataToLumaEvent(eventData: any, calendarSlug: string, index: numbe
   
   const fullUrl = buildEventUrl(calendarSlug, eventSlug, eventApiId);
   
+  // Extract description - prefer short description, fallback to full description
+  const description = event.description_short || event.description || event.summary;
+  
+  // Extract attendee count - try various possible field names
+  const attendeeCount = 
+    event.num_rsvps ||
+    event.num_attendees ||
+    event.attendee_count ||
+    event.rsvp_count ||
+    event.registered_count ||
+    event.going_count ||
+    event.attendees_count ||
+    (typeof event.num_going === 'number' ? event.num_going : undefined);
+  
   return {
     id: eventApiId || `event-${index}`,
     title: event.name || event.title || "Untitled Event",
     url: fullUrl,
-    description: event.description_short || event.description,
+    description: description,
     location: location,
     date: event.start_at || event.startAt || event.date,
     eventApiId: eventApiId,
+    attendeeCount: attendeeCount,
   };
 }
 
@@ -310,8 +326,43 @@ async function searchByTopic(query: string, limit: number): Promise<LumaEvent[]>
         );
         
         if (calendarEvents.length > 0) {
-          const lumaEvents = calendarEvents.map((eventData, idx) => 
-            eventDataToLumaEvent(eventData, calendar.calendar.slug, idx)
+          const lumaEvents = await Promise.all(
+            calendarEvents.map(async (eventData, idx) => {
+              const event = eventDataToLumaEvent(eventData, calendar.calendar.slug, idx);
+              
+              // If description or attendeeCount is missing, try to fetch individual event details
+              if ((!event.description || event.attendeeCount === undefined) && event.eventApiId) {
+                try {
+                  const details = await getEventDetails(event.eventApiId);
+                  if (details?.data?.event || details?.event) {
+                    const detailedEvent = details.data?.event || details.event;
+                    
+                    // Fill in missing description
+                    if (!event.description) {
+                      event.description = detailedEvent.description_short || detailedEvent.description || detailedEvent.summary;
+                    }
+                    
+                    // Fill in missing attendee count
+                    if (event.attendeeCount === undefined) {
+                      event.attendeeCount = 
+                        detailedEvent.num_rsvps ||
+                        detailedEvent.num_attendees ||
+                        detailedEvent.attendee_count ||
+                        detailedEvent.rsvp_count ||
+                        detailedEvent.registered_count ||
+                        detailedEvent.going_count ||
+                        detailedEvent.attendees_count ||
+                        (typeof detailedEvent.num_going === 'number' ? detailedEvent.num_going : undefined);
+                    }
+                  }
+                } catch (error) {
+                  // Silently fail - we'll just use what we have
+                  console.warn(`[luma] Failed to fetch details for event ${event.eventApiId}:`, error);
+                }
+              }
+              
+              return event;
+            })
           );
           allEvents.push(...lumaEvents);
           
@@ -496,20 +547,55 @@ export function formatEventsForTelegram(events: LumaEvent[]): string {
     const title = event.title || "Untitled Event";
     const url = event.url;
     
-    // Add location or description if available
-    let details = "";
+    // Build details section with description and attendee count
+    const details: string[] = [];
+    
+    // Add location if available
     if (event.location) {
-      details = ` - ${event.location}`;
-    } else if (event.description) {
-      const desc = event.description.length > 50 
-        ? event.description.substring(0, 47) + "..."
-        : event.description;
-      details = ` - ${desc}`;
+      details.push(event.location);
     }
     
-    return `${num}. [${title}](${url})${details}`;
+    // Add attendee count if available
+    if (event.attendeeCount !== undefined && event.attendeeCount > 0) {
+      details.push(`${event.attendeeCount} ${event.attendeeCount === 1 ? 'person' : 'people'} registered`);
+    }
+    
+    // Add description (1-2 lines, truncated if too long)
+    if (event.description) {
+      // Clean up description - remove HTML tags, extra whitespace
+      let cleanDesc = event.description
+        .replace(/<[^>]+>/g, '') // Remove HTML tags
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+      
+      // Limit to ~120 characters for 1-2 lines
+      if (cleanDesc.length > 120) {
+        // Try to truncate at a sentence boundary
+        const truncated = cleanDesc.substring(0, 120);
+        const lastPeriod = truncated.lastIndexOf('.');
+        const lastSpace = truncated.lastIndexOf(' ');
+        
+        if (lastPeriod > 80) {
+          cleanDesc = truncated.substring(0, lastPeriod + 1);
+        } else if (lastSpace > 80) {
+          cleanDesc = truncated.substring(0, lastSpace) + '...';
+        } else {
+          cleanDesc = truncated + '...';
+        }
+      }
+      
+      details.push(cleanDesc);
+    }
+    
+    // Format the line
+    let line = `${num}. [${title}](${url})`;
+    if (details.length > 0) {
+      line += `\n   ${details.join(' • ')}`;
+    }
+    
+    return line;
   });
   
-  return `Found ${events.length} event${events.length > 1 ? "s" : ""}:\n\n${lines.join("\n")}`;
+  return `Found ${events.length} event${events.length > 1 ? "s" : ""}:\n\n${lines.join("\n\n")}`;
 }
 

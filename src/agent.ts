@@ -964,6 +964,7 @@ addEntrypoint({
         description: z.string().optional(),
         location: z.string().optional(),
         date: z.string().optional(),
+        attendeeCount: z.number().optional(),
       })
     ),
     formattedMessage: z.string().describe("Formatted message ready for Telegram display."),
