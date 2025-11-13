@@ -1407,15 +1407,16 @@ const server = Bun.serve({
       // Ensure HTTPS origin
       const origin = url.origin.replace(/^http:/, "https:");
       const ogImageUrl = `${origin}/assets/logo.png`;
+      const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || "LumaEventSearchBot";
       return new Response(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>x402 Summariser Bot</title>
-  <meta name="description" content="Summarise your Discord & Telegram chats for $0.05 via x402.">
-  <meta property="og:title" content="x402 Summariser Bot">
-  <meta property="og:description" content="Summarise your Discord & Telegram chats for $0.05 via x402.">
+  <title>Luma Event Search Bot</title>
+  <meta name="description" content="Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity for $0.05 via x402.">
+  <meta property="og:title" content="Luma Event Search Bot">
+  <meta property="og:description" content="Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity for $0.05 via x402.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="${origin}/download">
   <meta property="og:image" content="${ogImageUrl}">
@@ -1423,8 +1424,8 @@ const server = Bun.serve({
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="x402 Summariser Bot">
-  <meta name="twitter:description" content="Summarise your Discord & Telegram chats for $0.05 via x402.">
+  <meta name="twitter:title" content="Luma Event Search Bot">
+  <meta name="twitter:description" content="Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity for $0.05 via x402.">
   <meta name="twitter:image" content="${ogImageUrl}">
   <style>
     :root {
@@ -1433,19 +1434,20 @@ const server = Bun.serve({
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: linear-gradient(135deg, #0f172a, #111c38 40%, #010409) fixed;
+      background: linear-gradient(135deg, #000000 0%, #1a0033 25%, #4b0082 50%, #8b00ff 75%, #ff1493 100%) fixed;
       color: #e2e8f0;
       display: flex;
       justify-content: center;
       padding: 48px 16px 96px;
+      min-height: 100vh;
     }
     body::before {
       content: "";
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.16), transparent 55%),
-                  radial-gradient(circle at 80% 10%, rgba(14, 165, 233, 0.12), transparent 50%),
-                  radial-gradient(circle at 40% 80%, rgba(56, 189, 248, 0.18), transparent 55%);
+      background: radial-gradient(circle at 20% 20%, rgba(255, 20, 147, 0.2), transparent 55%),
+                  radial-gradient(circle at 80% 10%, rgba(139, 0, 255, 0.15), transparent 50%),
+                  radial-gradient(circle at 40% 80%, rgba(75, 0, 130, 0.2), transparent 55%);
       pointer-events: none;
       z-index: -2;
     }
@@ -1453,7 +1455,7 @@ const server = Bun.serve({
       content: "";
       position: fixed;
       inset: 0;
-      background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95));
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.8), rgba(26, 0, 51, 0.95));
       z-index: -1;
     }
     .page {
@@ -1464,7 +1466,7 @@ const server = Bun.serve({
       content: "";
       position: absolute;
       inset: -40px;
-      background: radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.45), transparent 55%);
+      background: radial-gradient(circle at 0% 0%, rgba(255, 20, 147, 0.4), transparent 55%);
       filter: blur(120px);
       z-index: -1;
     }
@@ -1476,19 +1478,22 @@ const server = Bun.serve({
       margin: 0 0 16px;
       font-size: clamp(2rem, 6vw, 3.2rem);
       letter-spacing: -0.03em;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(255, 20, 147, 0.5);
     }
     p.lead {
       margin: 0 auto;
       max-width: 620px;
       font-size: 1.1rem;
       line-height: 1.6;
-      color: #cbd5f5;
+      color: #f0e6ff;
     }
     .logo {
       width: 120px;
       height: 120px;
       margin: 0 auto 24px;
       display: block;
+      filter: drop-shadow(0 0 20px rgba(255, 20, 147, 0.5));
     }
     .logo img {
       width: 100%;
@@ -1496,18 +1501,18 @@ const server = Bun.serve({
       object-fit: contain;
     }
     section {
-      background: linear-gradient(145deg, rgba(17, 24, 39, 0.78), rgba(15, 23, 42, 0.94));
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: linear-gradient(145deg, rgba(0, 0, 0, 0.85), rgba(26, 0, 51, 0.9));
+      border: 1px solid rgba(255, 20, 147, 0.3);
       border-radius: 16px;
       padding: 32px;
       margin-bottom: 32px;
       backdrop-filter: blur(14px);
-      box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
+      box-shadow: 0 24px 48px rgba(139, 0, 255, 0.4), 0 0 60px rgba(255, 20, 147, 0.2);
     }
     section h2 {
       margin-top: 0;
       font-size: 1.5rem;
-      color: #93c5fd;
+      color: #ff69b4;
     }
     .steps {
       counter-reset: step;
@@ -1520,10 +1525,11 @@ const server = Bun.serve({
     .steps li {
       padding: 20px 24px;
       border-radius: 12px;
-      background: linear-gradient(160deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.88));
-      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: linear-gradient(160deg, rgba(75, 0, 130, 0.4), rgba(26, 0, 51, 0.6));
+      border: 1px solid rgba(255, 20, 147, 0.25);
       position: relative;
       line-height: 1.5;
+      color: #f0e6ff;
     }
     .steps li::before {
       counter-increment: step;
@@ -1538,9 +1544,9 @@ const server = Bun.serve({
       display: grid;
       place-items: center;
       font-weight: 600;
-      background: #2563eb;
-      color: #f8fafc;
-      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.4);
+      background: linear-gradient(120deg, #ff1493, #8b00ff);
+      color: #ffffff;
+      box-shadow: 0 8px 18px rgba(255, 20, 147, 0.5);
     }
     .actions {
       display: grid;
@@ -1550,8 +1556,8 @@ const server = Bun.serve({
     .action-card {
       padding: 28px;
       border-radius: 14px;
-      background: linear-gradient(160deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.78));
-      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: linear-gradient(160deg, rgba(26, 0, 51, 0.9), rgba(75, 0, 130, 0.6));
+      border: 1px solid rgba(255, 20, 147, 0.3);
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -1559,11 +1565,11 @@ const server = Bun.serve({
     .action-card h3 {
       margin: 0;
       font-size: 1.25rem;
-      color: #bfdbfe;
+      color: #ff69b4;
     }
     .action-card p {
       margin: 0;
-      color: #cbd5f5;
+      color: #f0e6ff;
       line-height: 1.5;
     }
     a.button,
@@ -1580,25 +1586,33 @@ const server = Bun.serve({
       transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
     a.button {
-      background: linear-gradient(120deg, #2563eb, #1d4ed8);
-      color: #f8fafc;
-      box-shadow: 0 12px 32px rgba(37, 99, 235, 0.38);
+      background: linear-gradient(120deg, #ff1493, #8b00ff);
+      color: #ffffff;
+      box-shadow: 0 12px 32px rgba(255, 20, 147, 0.5), 0 0 20px rgba(139, 0, 255, 0.3);
     }
     a.button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 18px 28px rgba(37, 99, 235, 0.45);
+      box-shadow: 0 18px 40px rgba(255, 20, 147, 0.6), 0 0 30px rgba(139, 0, 255, 0.4);
     }
     span.button-disabled {
-      background: rgba(148, 163, 184, 0.18);
-      color: rgba(226, 232, 240, 0.6);
-      border: 1px dashed rgba(148, 163, 184, 0.35);
+      background: rgba(75, 0, 130, 0.3);
+      color: rgba(240, 230, 255, 0.6);
+      border: 1px dashed rgba(255, 20, 147, 0.35);
       cursor: not-allowed;
+    }
+    code {
+      background: rgba(75, 0, 130, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      color: #ff69b4;
+      border: 1px solid rgba(255, 20, 147, 0.2);
     }
     footer {
       margin-top: 48px;
       text-align: center;
       font-size: 0.85rem;
-      color: rgba(226, 232, 240, 0.6);
+      color: rgba(240, 230, 255, 0.6);
     }
   </style>
 </head>
@@ -1606,18 +1620,18 @@ const server = Bun.serve({
   <main class="page">
     <header>
       <div class="logo">
-        <img src="${ogImageUrl}" alt="x402 Summariser Bot Logo">
+        <img src="${ogImageUrl}" alt="Luma Event Search Bot Logo">
       </div>
-      <h1>x402 Summariser Bot</h1>
-      <p class="lead">Bring instant AI summaries to your community and pay via x402 with each recap. Install the Discord or Telegram bot and get channel highlights on demand.</p>
+      <h1>Luma Event Search Bot</h1>
+      <p class="lead">Search for events on Luma.com by topic or location. Get up to 5 events sorted by popularity, then use <code>/more</code> to see the next batch.</p>
     </header>
 
     <section>
       <h2>How It Works</h2>
       <ol class="steps">
-        <li>Install the bot into your Discord server or Telegram chat.</li>
-        <li>Use the <code>/summarise</code> command to request highlights for the past few hours.</li>
-        <li>Pay securely via x402, then receive an actionable summary right in your chat.</li>
+        <li>Install the bot into your Telegram chat.</li>
+        <li>Use <code>/search_events on &lt;topic&gt;</code> or <code>/search_events in &lt;city&gt;</code> to find events.</li>
+        <li>Pay securely via x402 ($0.05), then receive up to 5 events sorted by most attendees right in your chat.</li>
       </ol>
     </section>
 
@@ -1625,14 +1639,9 @@ const server = Bun.serve({
       <h2>Download</h2>
       <div class="actions">
         <div class="action-card">
-          <h3>Discord Bot</h3>
-          <p>Add the bot to your server in seconds and start generating summaries immediately.</p>
-          <a class="button" href="https://discord.com/oauth2/authorize?client_id=1433449171565678603&scope=bot&permissions=68608" target="_blank" rel="noopener">Install on Discord</a>
-        </div>
-        <div class="action-card">
           <h3>Telegram Bot</h3>
-          <p>Add the bot to your chats and request channel summaries directly inside Telegram.</p>
-          <a class="button" href="https://t.me/x402SummariserBot" target="_blank" rel="noopener">Open in Telegram</a>
+          <p>Add the bot to your chats and search for events directly inside Telegram.</p>
+          <a class="button" href="https://t.me/${telegramBotUsername}" target="_blank" rel="noopener">Open in Telegram</a>
         </div>
       </div>
     </section>
