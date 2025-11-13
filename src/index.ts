@@ -722,12 +722,21 @@ const server = Bun.serve({
       return handleTelegramCallback(req);
     }
 
-    // Handle logo.png with or without query parameters (for cache-busting)
-    if (url.pathname === "/assets/logo.png" && req.method === "GET") {
+    // Handle searcher.png (logo) with or without query parameters (for cache-busting)
+    // Also handle logo.png for backwards compatibility
+    if ((url.pathname === "/assets/searcher.png" || url.pathname === "/assets/logo.png") && req.method === "GET") {
       try {
-        // Try multiple possible paths - prioritize src/assets (deployed with code)
+        // Try multiple possible paths - prioritize searcher.png, then logo.png
         const possiblePaths = [
-          `${import.meta.dir}/assets/logo.png`, // src/assets/logo.png (relative to src/index.ts)
+          `${import.meta.dir}/assets/searcher.png`, // src/assets/searcher.png (relative to src/index.ts)
+          "./src/assets/searcher.png",
+          "src/assets/searcher.png",
+          "./public/assets/searcher.png",
+          "public/assets/searcher.png",
+          `${process.cwd()}/src/assets/searcher.png`,
+          `${process.cwd()}/public/assets/searcher.png`,
+          // Fallback to logo.png for backwards compatibility
+          `${import.meta.dir}/assets/logo.png`,
           "./src/assets/logo.png",
           "src/assets/logo.png",
           "./public/assets/logo.png",
@@ -739,7 +748,7 @@ const server = Bun.serve({
         for (const logoPath of possiblePaths) {
           const file = Bun.file(logoPath);
           if (await file.exists()) {
-            console.log(`[assets] Serving logo.png from: ${logoPath}`);
+            console.log(`[assets] Serving logo from: ${logoPath}`);
             return new Response(file, {
               headers: {
                 "Content-Type": "image/png",
@@ -748,9 +757,9 @@ const server = Bun.serve({
             });
           }
         }
-        console.error("[assets] Logo.png not found in any of the expected paths:", possiblePaths);
+        console.error("[assets] Logo not found in any of the expected paths");
       } catch (error) {
-        console.error("[assets] Error serving logo.png:", error);
+        console.error("[assets] Error serving logo:", error);
       }
       return new Response("Logo not found", { status: 404 });
     }
