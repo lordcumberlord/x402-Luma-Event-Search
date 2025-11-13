@@ -1206,10 +1206,43 @@ const server = Bun.serve({
           throw new Error('Payment failed: ' + (paymentError.message || 'Unknown error. Please check the console for details.'));
         }
 
+        // Check response status first
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Response not OK:', response.status, response.statusText);
+          console.error('❌ Error response:', errorText.substring(0, 500));
+          throw new Error(`Server returned ${response.status} ${response.statusText}: ${errorText.substring(0, 200)}`);
+        }
+        
         // Check for transaction hash in X-PAYMENT-RESPONSE header
         const paymentResponseHeader = response.headers.get('X-PAYMENT-RESPONSE');
         
-        const data = await response.json();
+        // Check content type before parsing JSON
+        const contentType = response.headers.get('content-type') || '';
+        let data;
+        
+        // Clone response so we can read it multiple times if needed
+        const responseClone = response.clone();
+        
+        if (!contentType.includes('application/json')) {
+          // If not JSON, try to get text first to see what we got
+          const text = await responseClone.text();
+          console.error('❌ Expected JSON but got:', contentType);
+          console.error('❌ Response preview:', text.substring(0, 500));
+          throw new Error(`Server returned ${contentType} instead of JSON. Response: ${text.substring(0, 200)}`);
+        }
+        
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          // If JSON parsing fails, try to get the raw text to debug
+          const text = await responseClone.text();
+          console.error('❌ Failed to parse JSON response:', jsonError);
+          console.error('❌ Response status:', response.status);
+          console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
+          console.error('❌ Response text:', text.substring(0, 1000));
+          throw new Error(`Invalid JSON response: ${jsonError.message}. Response preview: ${text.substring(0, 200)}`);
+        }
         
         // Extract transaction hash from various possible locations
         let txHash = null;
@@ -1749,6 +1782,11 @@ const server = Bun.serve({
         }
 
         const headers = new Headers(appResponse.headers);
+        
+        // Ensure Content-Type is set to application/json if not already set
+        if (!headers.has("Content-Type")) {
+          headers.set("Content-Type", "application/json");
+        }
         
         if (!settlementError && settlement && settlement.success) {
           const settlementHeader = settleResponseHeader(settlement);
