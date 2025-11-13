@@ -764,6 +764,37 @@ const server = Bun.serve({
       return new Response("Logo not found", { status: 404 });
     }
 
+    // Handle hyperlink.png
+    if (url.pathname === "/assets/hyperlink.png" && req.method === "GET") {
+      try {
+        const possiblePaths = [
+          `${import.meta.dir}/assets/hyperlink.png`,
+          "./src/assets/hyperlink.png",
+          "src/assets/hyperlink.png",
+          "./public/assets/hyperlink.png",
+          "public/assets/hyperlink.png",
+          `${process.cwd()}/src/assets/hyperlink.png`,
+          `${process.cwd()}/public/assets/hyperlink.png`,
+        ];
+        
+        for (const imagePath of possiblePaths) {
+          const file = Bun.file(imagePath);
+          if (await file.exists()) {
+            console.log(`[assets] Serving hyperlink.png from: ${imagePath}`);
+            return new Response(file, {
+              headers: {
+                "Content-Type": "image/png",
+                "Cache-Control": "public, max-age=86400",
+              },
+            });
+          }
+        }
+      } catch (error) {
+        console.error("[assets] Error serving hyperlink.png:", error);
+      }
+      return new Response("Image not found", { status: 404 });
+    }
+
     if (url.pathname === "/assets/x402-card.svg" && req.method === "GET") {
       const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
@@ -1406,6 +1437,60 @@ const server = Bun.serve({
     
     window.pay = pay;
   </script>
+</body>
+</html>`, {
+        headers: { "Content-Type": "text/html" },
+      });
+    }
+
+    // Hyperlink page - displays hyperlink.png as clickable link to download page
+    if (url.pathname === "/link" && req.method === "GET") {
+      const origin = url.origin.replace(/^http:/, "https:");
+      const imageUrl = `${origin}/assets/hyperlink.png`;
+      const downloadUrl = `${origin}/download`;
+      
+      return new Response(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Luma Event Search Bot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #000000 0%, #1a0033 25%, #4b0082 50%, #8b00ff 75%, #ff1493 100%) fixed;
+      padding: 20px;
+    }
+    a {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    a:hover {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+    a:active {
+      transform: scale(0.98);
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <a href="${downloadUrl}" target="_blank" rel="noopener">
+    <img src="${imageUrl}" alt="Luma Event Search Bot - Click to visit download page">
+  </a>
 </body>
 </html>`, {
         headers: { "Content-Type": "text/html" },
