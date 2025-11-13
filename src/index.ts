@@ -1211,7 +1211,7 @@ const server = Bun.serve({
           const errorText = await response.text();
           console.error('❌ Response not OK:', response.status, response.statusText);
           console.error('❌ Error response:', errorText.substring(0, 500));
-          throw new Error(`Server returned ${response.status} ${response.statusText}: ${errorText.substring(0, 200)}`);
+          throw new Error('Server returned ' + response.status + ' ' + response.statusText + ': ' + errorText.substring(0, 200));
         }
         
         // Check for transaction hash in X-PAYMENT-RESPONSE header
@@ -1229,7 +1229,7 @@ const server = Bun.serve({
           const text = await responseClone.text();
           console.error('❌ Expected JSON but got:', contentType);
           console.error('❌ Response preview:', text.substring(0, 500));
-          throw new Error(`Server returned ${contentType} instead of JSON. Response: ${text.substring(0, 200)}`);
+          throw new Error('Server returned ' + contentType + ' instead of JSON. Response: ' + text.substring(0, 200));
         }
         
         try {
@@ -1241,7 +1241,7 @@ const server = Bun.serve({
           console.error('❌ Response status:', response.status);
           console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
           console.error('❌ Response text:', text.substring(0, 1000));
-          throw new Error(`Invalid JSON response: ${jsonError.message}. Response preview: ${text.substring(0, 200)}`);
+          throw new Error('Invalid JSON response: ' + jsonError.message + '. Response preview: ' + text.substring(0, 200));
         }
         
         // Extract transaction hash from various possible locations
