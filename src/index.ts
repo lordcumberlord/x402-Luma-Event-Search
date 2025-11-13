@@ -1643,7 +1643,7 @@ const server = Bun.serve({
           process.env.PAY_TO || "0x1b0006dbfbf4d8ec99cd7c40c43566eaa7d95fed"
         ).toLowerCase();
         const facilitatorUrl =
-          process.env.FACILITATOR_URL || "https://facilitator.x402.rs";
+          process.env.FACILITATOR_URL || "https://facilitator.daydreams.systems";
         const agentBaseUrl =
           process.env.AGENT_URL || `https://x402-summariser-production.up.railway.app`;
         // Normalize pathname to remove leading slashes and ensure single slash

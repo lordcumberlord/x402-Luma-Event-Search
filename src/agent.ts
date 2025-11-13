@@ -102,7 +102,7 @@ const configOverrides: AgentKitConfig = {
   payments: {
     facilitatorUrl:
       (process.env.FACILITATOR_URL as any) ??
-      "https://facilitator.x402.rs",
+      "https://facilitator.daydreams.systems",
     payTo: (
       (process.env.PAY_TO as `0x${string}`) ??
       "0x1b0006dbfbf4d8ec99cd7c40c43566eaa7d95fed"
